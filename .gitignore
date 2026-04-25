@@ -1,0 +1,10 @@
+node_modules/
+.env
+*.log
+ridesnap.db
+*.db-shm
+*.db-wal
+.DS_Store
+dist/
+build/
+coverage/

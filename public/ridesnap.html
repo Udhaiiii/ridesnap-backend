@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="theme-color" content="#060b14"/>
+  <title>RideSnap – Photographer</title>
+    <script src="/auth.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #060b14; font-family: 'Space Mono', monospace; color: #f1f5f9; overflow-x: hidden; }
+
+    /* ── HEADER ── */
+    .header { background: #0d1829; border-bottom: 1px solid #1e293b; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 17px; }
+    .logo span { color: #facc15; }
+    .server-status { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #475569; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; transition: background 0.3s; }
+    .status-dot.online { background: #4ade80; animation: blink 2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* ── STEPS ── */
+    .steps { display: flex; padding: 14px 20px; background: #0d1829; border-bottom: 1px solid #1e293b; gap: 0; }
+    .step { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; position: relative; }
+    .step:not(:last-child)::after { content: ""; position: absolute; top: 14px; left: 60%; width: 80%; height: 1px; background: #1e293b; }
+    .step.done:not(:last-child)::after { background: #facc15; }
+    .step-circle { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #1e293b; background: #060b14; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #475569; transition: all 0.3s; z-index: 1; }
+    .step.active .step-circle { border-color: #facc15; color: #facc15; background: rgba(250,204,21,0.1); }
+    .step.done   .step-circle { border-color: #4ade80; background: #4ade80; color: #052e16; }
+    .step-label { font-size: 9px; color: #475569; letter-spacing: 1px; text-transform: uppercase; }
+    .step.active .step-label { color: #facc15; }
+    .step.done   .step-label { color: #4ade80; }
+
+    /* ── SCREENS ── */
+    .screen { display: none; padding: 20px; max-width: 480px; margin: 0 auto; }
+    .screen.active { display: block; animation: fadeUp 0.3s ease; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ── CARDS ── */
+    .card { background: #0d1829; border: 1px solid #1e293b; border-radius: 18px; padding: 20px; margin-bottom: 14px; }
+    .card-title { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #475569; margin-bottom: 14px; }
+
+    /* ── RIDE GRID ── */
+    .ride-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ride-btn { background: #0a1628; border: 2px solid #1e293b; border-radius: 12px; padding: 14px 10px; cursor: pointer; text-align: center; transition: all 0.18s; color: #f1f5f9; }
+    .ride-btn:hover  { border-color: #334155; }
+    .ride-btn.selected { border-color: #facc15; background: rgba(250,204,21,0.08); }
+    .ride-btn .ri { font-size: 24px; margin-bottom: 6px; }
+    .ride-btn .rn { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 12px; }
+    .ride-btn .rid { font-size: 9px; color: #475569; margin-top: 2px; }
+
+    /* ── PHOTO BUTTONS ── */
+    .photo-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+
+    /* ── MULTI PHOTO GRID ── */
+    .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+    .photo-thumb-wrap {
+      position: relative; aspect-ratio: 1;
+      border-radius: 10px; overflow: hidden;
+      border: 2px solid #1e293b;
+    }
+    .photo-thumb-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-remove {
+      position: absolute; top: 4px; right: 4px;
+      background: rgba(239,68,68,0.9); color: white;
+      border: none; border-radius: 50%; width: 22px; height: 22px;
+      font-size: 12px; cursor: pointer; display: flex;
+      align-items: center; justify-content: center; line-height: 1;
+    }
+    .photo-num {
+      position: absolute; bottom: 4px; left: 4px;
+      background: rgba(0,0,0,0.7); color: #facc15;
+      border-radius: 6px; padding: 2px 6px; font-size: 10px; font-weight: 700;
+    }
+    .add-more-btn {
+      aspect-ratio: 1; border-radius: 10px;
+      border: 2px dashed #1e293b; background: #0a1628;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; cursor: pointer; color: #475569;
+      font-size: 24px; gap: 4px; transition: all 0.18s;
+    }
+    .add-more-btn:hover { border-color: #facc15; color: #facc15; }
+    .add-more-btn span { font-size: 10px; letter-spacing: 1px; }
+
+    .photo-count-badge {
+      background: rgba(250,204,21,0.1); border: 1px solid rgba(250,204,21,0.3);
+      border-radius: 10px; padding: 10px 14px; margin-bottom: 14px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .pcb-left { font-size: 13px; color: #facc15; font-weight: 700; }
+    .pcb-right { font-size: 10px; color: #475569; }
+
+    /* ── WB INPUT ── */
+    .wb-input-wrap { position: relative; }
+    .wb-input { width: 100%; padding: 16px 100px 16px 16px; background: #0a1628; border: 2px solid #1e293b; border-radius: 12px; color: #f1f5f9; font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; outline: none; transition: border 0.2s; }
+    .wb-search-btn { position: absolute; right: 50px; top: 50%; transform: translateY(-50%); background: #facc15; border: none; border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 16px; }
+    .wb-scan-btn   { position: absolute; right: 10px;  top: 50%; transform: translateY(-50%); background: #3b82f6; border: none; border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 16px; }
+    .wb-input:focus { border-color: #facc15; }
+    .wb-input::placeholder { color: #334155; font-size: 14px; letter-spacing: 1px; }
+
+
+    /* ── GUEST FOUND ── */
+    .guest-found { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.3); border-radius: 12px; padding: 14px 16px; margin-top: 12px; display: none; align-items: center; gap: 12px; }
+    .guest-found.visible { display: flex; }
+    .gf-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; color: #4ade80; }
+    .gf-id   { font-size: 10px; color: #475569; margin-top: 2px; }
+
+    /* ── CONFIRM ── */
+    .confirm-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #1e293b; }
+    .confirm-row:last-child { border-bottom: none; }
+    .cr-label { font-size: 11px; color: #475569; }
+    .cr-value { font-size: 13px; font-weight: 700; }
+    .confirm-thumbs { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-bottom: 14px; }
+    .confirm-thumbs img { width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px; border:1px solid #1e293b; }
+
+    /* ── PROGRESS ── */
+    .upload-progress { display: none; margin-bottom: 14px; }
+    .upload-progress.visible { display: block; }
+    .prog-label { font-size: 11px; color: #facc15; margin-bottom: 6px; }
+    .prog-bar { background: #1e293b; border-radius: 6px; height: 8px; overflow: hidden; margin-bottom: 4px; }
+    .prog-fill { height: 100%; background: linear-gradient(90deg,#facc15,#f59e0b); border-radius: 6px; transition: width 0.3s; }
+    .prog-text { font-size: 10px; color: #475569; text-align: center; }
+
+    /* ── SUCCESS ── */
+    .success-screen { text-align: center; padding: 32px 20px; }
+    .success-icon { font-size: 56px; margin-bottom: 14px; animation: popIn 0.5s cubic-bezier(.17,.67,.35,1.2); }
+    @keyframes popIn { 0%{transform:scale(0)} 100%{transform:scale(1)} }
+    .success-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; color: #4ade80; margin-bottom: 6px; }
+    .success-sub   { font-size: 12px; color: #475569; margin-bottom: 20px; line-height: 1.8; }
+    .success-photos { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-bottom: 20px; }
+    .success-photos img { width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px; border:1px solid #1e293b; }
+    .success-detail { background: #0d1829; border: 1px solid #1e293b; border-radius: 14px; padding: 14px; text-align: left; margin-bottom: 20px; }
+
+    /* ── BUTTONS ── */
+    .btn { width: 100%; padding: 15px; border: none; border-radius: 14px; cursor: pointer; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.18s; margin-bottom: 10px; }
+    .btn:last-child { margin-bottom: 0; }
+    .btn-yellow { background: #facc15; color: #0f172a; }
+    .btn-yellow:hover { background: #fde047; }
+    .btn-yellow:disabled { background: #1e293b; color: #475569; cursor: not-allowed; }
+    .btn-outline { background: transparent; color: #94a3b8; border: 1px solid #1e293b; }
+    .btn-outline:hover { border-color: #334155; color: #f1f5f9; }
+    .btn-green { background: #052e16; color: #4ade80; border: 1px solid #4ade80; }
+    .btn-green:hover { background: #064e3b; }
+    .btn-sm { padding: 10px 14px; font-size: 12px; width: auto; }
+
+    /* ── TOAST ── */
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #0d1829; border: 1px solid #1e293b; color: #f1f5f9; padding: 12px 20px; border-radius: 12px; font-size: 13px; z-index: 200; display: none; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    .toast.show { display: block; animation: slideUp 0.3s ease; }
+    @keyframes slideUp { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+
+    .error-box { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); border-radius: 10px; padding: 12px 14px; font-size: 12px; color: #f87171; margin-top: 10px; display: none; }
+    .error-box.visible { display: block; }
+
+    .tip-box { background: rgba(250,204,21,0.04); border: 1px solid rgba(250,204,21,0.15); border-radius: 12px; padding: 14px; font-size: 12px; color: #475569; line-height: 1.9; }
+
+    /* ── QR Scanner Modal ── */
+    .qr-modal {
+      display: none; position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.95);
+      flex-direction: column; align-items: center; justify-content: center;
+    }
+    .qr-modal.open { display: flex; }
+    .qr-modal-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; color: #facc15; margin-bottom: 8px; }
+    .qr-modal-sub   { font-size: 11px; color: #475569; margin-bottom: 20px; letter-spacing: 1px; }
+    .qr-viewport {
+      width: 280px; height: 280px; position: relative;
+      border-radius: 16px; overflow: hidden; background: #000;
+    }
+    .qr-viewport video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    /* Corner guides */
+    .qr-corner {
+      position: absolute; width: 28px; height: 28px;
+      border-color: #facc15; border-style: solid; border-width: 0;
+    }
+    .qr-corner.tl { top: 10px;  left: 10px;  border-top-width: 3px; border-left-width: 3px;  border-radius: 4px 0 0 0; }
+    .qr-corner.tr { top: 10px;  right: 10px; border-top-width: 3px; border-right-width: 3px; border-radius: 0 4px 0 0; }
+    .qr-corner.bl { bottom: 10px; left: 10px;  border-bottom-width: 3px; border-left-width: 3px;  border-radius: 0 0 0 4px; }
+    .qr-corner.br { bottom: 10px; right: 10px; border-bottom-width: 3px; border-right-width: 3px; border-radius: 0 0 4px 0; }
+    /* Scan line animation */
+    .qr-scanline {
+      position: absolute; left: 10px; right: 10px; height: 2px;
+      background: linear-gradient(90deg, transparent, #facc15, transparent);
+      animation: scanline 2s ease-in-out infinite;
+    }
+    @keyframes scanline {
+      0%   { top: 10px;  }
+      50%  { top: calc(100% - 10px); }
+      100% { top: 10px;  }
+    }
+    .qr-detected {
+      position: absolute; inset: 0; background: rgba(74,222,128,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 48px; display: none;
+    }
+    .qr-close-btn {
+      margin-top: 20px; background: transparent; border: 1px solid #334155;
+      color: #94a3b8; padding: 12px 28px; border-radius: 10px;
+      cursor: pointer; font-size: 13px; font-family: 'Space Mono', monospace;
+    }
+    .qr-hint { margin-top: 14px; font-size: 11px; color: #334155; text-align: center; }
+    .tip-box b { color: #facc15; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">📸 Ride<span>Snap</span></div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="server-status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">CONNECTING</span>
+    </div>
+    <div style="font-size:11px;color:#64748b;font-family:'Space Mono',monospace">👤 <span id="hdrUserName">—</span></div>
+    <button onclick="rsLogout()" style="background:#1e293b;border:1px solid #7f1d1d;color:#f87171;padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'Space Mono',monospace;font-size:11px;" onmouseover="this.style.background='#3a1a1a'" onmouseout="this.style.background='#1e293b'">⏻ Logout</button>
+  </div>
+</div>
+
+<!-- Steps -->
+<div class="steps">
+  <div class="step active" id="step1"><div class="step-circle">1</div><div class="step-label">Ride</div></div>
+  <div class="step"        id="step2"><div class="step-circle">2</div><div class="step-label">Photos</div></div>
+  <div class="step"        id="step3"><div class="step-circle">3</div><div class="step-label">Guest</div></div>
+  <div class="step"        id="step4"><div class="step-circle">4</div><div class="step-label">Upload</div></div>
+</div>
+
+<!-- ── STEP 1: Select Ride ── -->
+<div class="screen active" id="screen1">
+  <div class="card">
+    <div class="card-title">Select Ride</div>
+    <div class="ride-grid" id="rideGrid"></div>
+  </div>
+  <button class="btn btn-yellow" id="s1next" onclick="goToStep(2)" disabled>Next → Select Photos</button>
+</div>
+
+<!-- ── STEP 2: Select Multiple Photos ── -->
+<div class="screen" id="screen2">
+
+  <!-- Hidden file inputs — no onclick conflict -->
+  <input type="file" id="inputCamera"  accept="image/*" capture="environment" multiple style="display:none" onchange="onPhotosAdded(event)"/>
+  <input type="file" id="inputGallery" accept="image/*" multiple style="display:none" onchange="onPhotosAdded(event)"/>
+
+  <div class="card">
+    <div class="card-title">Select Photos (1–5)</div>
+
+    <!-- Photo buttons -->
+    <div class="photo-btns">
+      <button class="btn btn-yellow btn-sm" style="margin:0" onclick="document.getElementById('inputCamera').click()">📷 Take Photo</button>
+      <button class="btn btn-outline btn-sm" style="margin:0" onclick="document.getElementById('inputGallery').click()">🖼️ Gallery</button>
+    </div>
+
+    <!-- Photo count -->
+    <div class="photo-count-badge" id="photoBadge" style="display:none">
+      <div class="pcb-left" id="photoCountText">0 photos selected</div>
+      <div class="pcb-right">Max 5 · tap ✕ to remove</div>
+    </div>
+
+    <!-- Photo thumbnails grid -->
+    <div class="photo-grid" id="photoGrid"></div>
+
+    <div class="error-box" id="photoError"></div>
+  </div>
+
+  <div class="tip-box">
+    <b>💡 Tip:</b> Photographer takes 2–5 photos at the ride.<br/>
+    Select all of them at once from gallery.<br/>
+    Guest will see all photos and pick their favourite!
+  </div>
+  <br/>
+
+  <button class="btn btn-yellow" id="s2next" onclick="goToStep(3)" disabled>Next → Scan Guest QR</button>
+  <button class="btn btn-outline" onclick="goToStep(1)">← Back</button>
+</div>
+
+<!-- ── QR Scanner Modal ── -->
+<div class="qr-modal" id="qrModal">
+  <div class="qr-modal-title">📷 Scan Wristband QR</div>
+  <div class="qr-modal-sub">POINT CAMERA AT GUEST WRISTBAND</div>
+  <div class="qr-viewport" id="qrViewport">
+    <video id="qrVideo" autoplay playsinline muted></video>
+    <div class="qr-corner tl"></div>
+    <div class="qr-corner tr"></div>
+    <div class="qr-corner bl"></div>
+    <div class="qr-corner br"></div>
+    <div class="qr-scanline"></div>
+    <div class="qr-detected" id="qrDetected">✅</div>
+  </div>
+  <div class="qr-hint" id="qrHint">Hold steady — scanning...</div>
+  <button class="qr-close-btn" onclick="closeScanner()">✕ Cancel</button>
+</div>
+
+<!-- ── STEP 3: Guest WB ── -->
+<div class="screen" id="screen3">
+  <div class="card">
+    <div class="card-title">Guest Wristband ID</div>
+    <div class="wb-input-wrap">
+      <input type="text" class="wb-input" id="wbInput"
+             placeholder="WB-0001"
+             autocomplete="off"
+             oninput="this.value=this.value.toUpperCase()"
+             onkeydown="if(event.key==='Enter') lookupGuest()"/>
+      <button class="wb-search-btn" onclick="lookupGuest()">🔍</button>
+      <button class="wb-scan-btn"   onclick="openScanner()">📷</button>
+    </div>
+    <div class="guest-found" id="guestFound">
+      <div style="font-size:28px;">✅</div>
+      <div>
+        <div class="gf-name" id="gfName">—</div>
+        <div class="gf-id"   id="gfId">—</div>
+      </div>
+    </div>
+    <div class="error-box" id="guestError"></div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+    <button class="btn btn-yellow" style="margin:0; padding:14px;" onclick="openScanner()">
+      📷 Scan QR Code
+    </button>
+    <button class="btn btn-outline" style="margin:0; padding:14px;" onclick="document.getElementById('wbInput').focus()">
+      ⌨️ Type Manually
+    </button>
+  </div>
+
+  <div class="tip-box">
+    <b>💡 No guest registered?</b> That's fine!<br/>
+    Type wristband ID directly e.g. <b>WB-0001</b><br/>
+    Guest fills details at counter later.
+  </div>
+  <br/>
+
+  <button class="btn btn-yellow" id="s3next" onclick="goToStep(4)" disabled>Next → Confirm & Upload</button>
+  <button class="btn btn-outline" onclick="goToStep(2)">← Back</button>
+</div>
+
+<!-- ── STEP 4: Confirm & Upload ── -->
+<div class="screen" id="screen4">
+  <div class="card">
+    <div class="card-title">Confirm & Upload</div>
+
+    <!-- Thumbnail grid of all selected photos -->
+    <div class="confirm-thumbs" id="confirmThumbs"></div>
+
+    <div class="confirm-row"><span class="cr-label">Ride</span><span class="cr-value" id="cRide">—</span></div>
+    <div class="confirm-row"><span class="cr-label">Wristband</span><span class="cr-value" id="cWB" style="color:#facc15">—</span></div>
+    <div class="confirm-row"><span class="cr-label">Guest</span><span class="cr-value" id="cGuest">—</span></div>
+    <div class="confirm-row"><span class="cr-label">Photos</span><span class="cr-value" id="cCount" style="color:#4ade80">—</span></div>
+  </div>
+
+  <!-- Per-photo upload progress -->
+  <div class="upload-progress" id="uploadProgress">
+    <div class="prog-label" id="progLabel">Uploading photo 1 of 3...</div>
+    <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+    <div class="prog-text"  id="progText">0%</div>
+  </div>
+
+  <button class="btn btn-yellow" id="uploadBtn" onclick="uploadAll()">⬆️ Upload All Photos</button>
+  <button class="btn btn-outline" onclick="goToStep(3)">← Back</button>
+</div>
+
+<!-- ── STEP 5: Success ── -->
+<div class="screen" id="screen5">
+  <div class="success-screen">
+    <div class="success-icon">🎉</div>
+    <div class="success-title" id="successTitle">Photos Uploaded!</div>
+    <div class="success-sub"   id="successSub">—</div>
+    <div class="success-photos" id="successPhotos"></div>
+    <div class="success-detail" id="successDetail"></div>
+    <button class="btn btn-green" onclick="nextGuest()">📸 Next Guest</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // Auto-detect API URL:
+  // If opened via ngrok/external URL → use same host
+  // If opened via localhost → use localhost:5000
+
+  // Auth check
+  (async () => {
+    const user = await requireAuth(["photographer","admin"]);
+    if (user) injectUserBar("Photographer App");
+  })();
+
+  const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:5000/api'
+    : window.location.origin + '/api';
+
+  let state = {
+    ride:      null,
+    photos:    [],       // array of { file, preview }
+    wbId:      null,
+    guestName: null,
+  };
+
+  // ── Server check ───────────────────────────────────────────────
+  async function checkServer() {
+    try {
+      const res = await fetch(`${API}/health`);
+      const ok  = res.ok;
+      document.getElementById("statusDot").className   = "status-dot" + (ok ? " online" : "");
+      document.getElementById("statusText").textContent = ok ? "ONLINE" : "OFFLINE";
+    } catch {
+      document.getElementById("statusDot").className   = "status-dot";
+      document.getElementById("statusText").textContent = "OFFLINE";
+    }
+  }
+
+  // ── Load rides ─────────────────────────────────────────────────
+  async function loadRides() {
+    const defaults = [
+      { id:"R01", name:"Thunder Coaster", emoji:"🎢" },
+      { id:"R02", name:"Aqua Drop",       emoji:"💧" },
+      { id:"R03", name:"Sky Twister",     emoji:"🌪️" },
+      { id:"R04", name:"Dark Tunnel",     emoji:"🕳️" },
+      { id:"R05", name:"Gravity Zone",    emoji:"🚀" },
+    ];
+    try {
+      const res  = await fetch(`${API}/rides`);
+      const data = await res.json();
+      renderRides(data.success ? data.rides : defaults);
+    } catch { renderRides(defaults); }
+  }
+
+  function renderRides(rides) {
+    const emojis = ["🎢","💧","🌪️","🕳️","🚀","🎡","🎠","⚡"];
+    document.getElementById("rideGrid").innerHTML = rides.map((r,i) => `
+      <div class="ride-btn" id="ride_${r.id}" onclick="selectRide('${r.id}','${r.name}')">
+        <div class="ri">${r.emoji || emojis[i%emojis.length]}</div>
+        <div class="rn">${r.name}</div>
+        <div class="rid">${r.id}</div>
+      </div>`).join("");
+  }
+
+  function selectRide(id, name) {
+    state.ride = { id, name };
+    document.querySelectorAll(".ride-btn").forEach(b => b.classList.remove("selected"));
+    document.getElementById("ride_" + id)?.classList.add("selected");
+    document.getElementById("s1next").disabled = false;
+  }
+
+  // ── Photos added (multiple) ────────────────────────────────────
+  function onPhotosAdded(e) {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    // Check max 5 total
+    const remaining = 5 - state.photos.length;
+    if (remaining <= 0) {
+      showToast("❌ Maximum 5 photos allowed!");
+      e.target.value = "";
+      return;
+    }
+
+    const toAdd = files.slice(0, remaining);
+    if (files.length > remaining) {
+      showToast(`⚠️ Only ${remaining} more photo(s) allowed. Added first ${remaining}.`);
+    }
+
+    // Read each file
+    let loaded = 0;
+    toAdd.forEach(file => {
+      if (!file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        state.photos.push({ file, preview: ev.target.result });
+        loaded++;
+        if (loaded === toAdd.length) {
+          renderPhotoGrid();
+          updatePhotoCount();
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    e.target.value = ""; // reset so same files can be re-added
+  }
+
+  // ── Render photo grid ──────────────────────────────────────────
+  function renderPhotoGrid() {
+    const grid = document.getElementById("photoGrid");
+    grid.innerHTML = "";
+
+    state.photos.forEach((p, i) => {
+      const wrap = document.createElement("div");
+      wrap.className = "photo-thumb-wrap";
+      wrap.innerHTML = `
+        <img src="${p.preview}" alt="Photo ${i+1}"/>
+        <button class="photo-remove" onclick="removePhoto(${i})">✕</button>
+        <div class="photo-num">#${i+1}</div>`;
+      grid.appendChild(wrap);
+    });
+
+    // Add "+" button if less than 5
+    if (state.photos.length < 5) {
+      const add = document.createElement("div");
+      add.className = "add-more-btn";
+      add.innerHTML = `<div>+</div><span>ADD MORE</span>`;
+      add.onclick = () => document.getElementById("inputGallery").click();
+      grid.appendChild(add);
+    }
+  }
+
+  function removePhoto(index) {
+    state.photos.splice(index, 1);
+    renderPhotoGrid();
+    updatePhotoCount();
+  }
+
+  function updatePhotoCount() {
+    const count = state.photos.length;
+    const badge = document.getElementById("photoBadge");
+    document.getElementById("photoCountText").textContent = `${count} photo${count !== 1 ? "s" : ""} selected`;
+    badge.style.display = count > 0 ? "flex" : "none";
+    document.getElementById("s2next").disabled = count === 0;
+  }
+
+  // ── Lookup guest ───────────────────────────────────────────────
+  async function lookupGuest() {
+    const val = document.getElementById("wbInput").value.trim().toUpperCase();
+    if (!val) return;
+
+    const searchBtn = document.querySelector(".wb-search-btn");
+    searchBtn.textContent = "⏳";
+    searchBtn.disabled    = true;
+    document.getElementById("guestFound").classList.remove("visible");
+    document.getElementById("guestError").classList.remove("visible");
+
+    try {
+      // ── Step 1: Validate wristband ──
+      const vRes  = await fetch(`${API}/wristbands/validate/${val}`);
+      const vData = await vRes.json();
+
+      if (!vData.valid) {
+        showError("guestError", `❌ Invalid wristband: "${val}" — Not registered in system. Only pre-printed wristbands are accepted.`);
+        searchBtn.textContent = "🔍";
+        searchBtn.disabled    = false;
+        return;
+      }
+
+      // ── Step 2: Valid — get guest info ──
+      state.wbId = val;
+      const res  = await fetch(`${API}/visits/${val}`);
+      const data = await res.json();
+      state.guestName = data.visit?.guest_name || "Guest";
+
+      document.getElementById("gfName").textContent = `Wristband ${val}`;
+      document.getElementById("gfId").textContent   = vData.batch_label || "Registered ✅";
+      document.getElementById("guestFound").classList.add("visible");
+      hideError("guestError");
+      document.getElementById("s3next").disabled = false;
+
+    } catch {
+      // Server offline — reject all, cannot validate without server
+      showError("guestError", `❌ Cannot validate wristband — server is offline. Start the server first (npm run dev), then try again.`);
+    }
+
+    searchBtn.textContent = "🔍";
+    searchBtn.disabled    = false;
+  }
+
+  // ── Fill confirm screen ────────────────────────────────────────
+  function fillConfirm() {
+    // Thumbnails
+    document.getElementById("confirmThumbs").innerHTML =
+      state.photos.map((p,i) => `<img src="${p.preview}" alt="Photo ${i+1}"/>`).join("");
+
+    document.getElementById("cRide").textContent  = state.ride?.name || "—";
+    document.getElementById("cWB").textContent    = state.wbId || "—";
+    document.getElementById("cGuest").textContent = state.guestName || "—";
+    document.getElementById("cCount").textContent = state.photos.length + " photos";
+  }
+
+  // ── Upload ALL photos one by one ───────────────────────────────
+  async function uploadAll() {
+    if (!state.photos.length || !state.wbId || !state.ride) {
+      showToast("❌ Missing photos, wristband or ride!");
+      return;
+    }
+
+    const btn      = document.getElementById("uploadBtn");
+    const progress = document.getElementById("uploadProgress");
+    btn.disabled   = true;
+    progress.classList.add("visible");
+
+    const uploadedIds = [];
+    const total = state.photos.length;
+
+    for (let i = 0; i < total; i++) {
+      const p = state.photos[i];
+
+      // Update progress label
+      document.getElementById("progLabel").textContent = `Uploading photo ${i+1} of ${total}...`;
+      document.getElementById("progFill").style.width  = "10%";
+      document.getElementById("progText").textContent  = "Starting...";
+
+      try {
+        const formData = new FormData();
+        formData.append("photo",     p.file);
+        formData.append("visit_id",  state.wbId);
+        formData.append("ride_id",   state.ride.id);
+        formData.append("ride_name", state.ride.name);
+
+        // Animate progress
+        let prog = 10;
+        const progInterval = setInterval(() => {
+          prog = Math.min(prog + 5, 85);
+          document.getElementById("progFill").style.width = prog + "%";
+          document.getElementById("progText").textContent  = prog + "%";
+        }, 200);
+
+        const res  = await fetch(`${API}/photos/upload`, { method:"POST", body: formData });
+        const data = await res.json();
+
+        clearInterval(progInterval);
+        document.getElementById("progFill").style.width = "100%";
+        document.getElementById("progText").textContent  = "✅ Done!";
+
+        if (!data.success) throw new Error(data.error);
+        uploadedIds.push(data.photo.id);
+
+        await new Promise(r => setTimeout(r, 300));
+
+      } catch (err) {
+        showToast(`❌ Photo ${i+1} failed: ${err.message}`);
+        btn.disabled = false;
+        return;
+      }
+    }
+
+    // All done — show success
+    document.getElementById("successTitle").textContent =
+      `${total} Photo${total>1?"s":""} Uploaded! 🎉`;
+    document.getElementById("successSub").textContent =
+      `All linked to ${state.wbId} · ${state.ride?.name}\nGuest can view all at the counter`;
+    document.getElementById("successPhotos").innerHTML =
+      state.photos.map(p => `<img src="${p.preview}" alt=""/>`).join("");
+    document.getElementById("successDetail").innerHTML = `
+      <div class="confirm-row"><span class="cr-label">Wristband</span><span class="cr-value" style="color:#facc15">${state.wbId}</span></div>
+      <div class="confirm-row"><span class="cr-label">Ride</span><span class="cr-value">${state.ride?.name}</span></div>
+      <div class="confirm-row"><span class="cr-label">Photos</span><span class="cr-value" style="color:#4ade80">${total} uploaded ✅</span></div>
+      <div class="confirm-row" style="border:none"><span class="cr-label">Watermarks</span><span class="cr-value" style="color:#4ade80">✅ Created</span></div>
+    `;
+
+    goToStep(5);
+  }
+
+  // ── Navigation ─────────────────────────────────────────────────
+  function goToStep(step) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen" + step).classList.add("active");
+    for (let i = 1; i <= 4; i++) {
+      const el = document.getElementById("step" + i);
+      if (!el) continue;
+      el.classList.remove("active","done");
+      if (i < step)  el.classList.add("done");
+      if (i === step) el.classList.add("active");
+    }
+    if (step === 4) fillConfirm();
+    window.scrollTo({ top:0, behavior:"smooth" });
+  }
+
+  // ── Next guest ─────────────────────────────────────────────────
+  function nextGuest() {
+    // Keep ride selected, reset everything else
+    state.photos    = [];
+    state.wbId      = null;
+    state.guestName = null;
+
+    document.getElementById("photoGrid").innerHTML  = "";
+    document.getElementById("photoBadge").style.display = "none";
+    document.getElementById("s2next").disabled = true;
+    document.getElementById("wbInput").value   = "";
+    document.getElementById("guestFound").classList.remove("visible");
+    document.getElementById("s3next").disabled = true;
+    document.getElementById("uploadProgress").classList.remove("visible");
+    document.getElementById("progFill").style.width = "0%";
+    document.getElementById("uploadBtn").disabled   = false;
+
+    goToStep(2); // Go back to photo selection
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 3500);
+  }
+
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add("visible");
+  }
+
+  function hideError(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove("visible");
+  }
+
+  // ── QR Scanner ────────────────────────────────────────────────
+  // ── QR Scanner using html5-qrcode (best iPhone + Android support) ──
+  let html5QrScanner = null;
+  let scannerOpen    = false;
+
+  async function openScanner() {
+    if (scannerOpen) return;
+    scannerOpen = true;
+
+    const modal = document.getElementById('qrModal');
+    modal.classList.add('open');
+    document.getElementById('qrDetected').style.display = 'none';
+    document.getElementById('qrHint').textContent = 'Hold steady — scanning...';
+
+    // Load html5-qrcode library dynamically (best iPhone support)
+    if (!window.Html5Qrcode) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+        s.onload  = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    try {
+      // Replace video element with html5-qrcode div
+      const viewport = document.getElementById('qrViewport');
+      // Keep corner guides and scanline, just hide video
+      document.getElementById('qrVideo').style.display = 'none';
+
+      // Create scanner div inside viewport
+      let scanDiv = document.getElementById('html5qr-scanner');
+      if (!scanDiv) {
+        scanDiv = document.createElement('div');
+        scanDiv.id = 'html5qr-scanner';
+        scanDiv.style.cssText = 'width:100%;height:100%;position:absolute;top:0;left:0;border-radius:16px;overflow:hidden;';
+        viewport.insertBefore(scanDiv, viewport.firstChild);
+      }
+
+      html5QrScanner = new Html5Qrcode('html5qr-scanner');
+
+      const config = {
+        fps: 15,
+        qrbox: { width: 200, height: 200 },
+        aspectRatio: 1.0,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+      };
+
+      await html5QrScanner.start(
+        { facingMode: 'environment' },
+        config,
+        (decodedText) => onQRDetected(decodedText),
+        () => {} // ignore per-frame errors
+      );
+
+      // Hide html5-qrcode default UI elements we don't need
+      setTimeout(() => {
+        const unwanted = scanDiv.querySelectorAll('img, button');
+        unwanted.forEach(el => el.style.display = 'none');
+        // Make video inside fill properly
+        const v = scanDiv.querySelector('video');
+        if (v) { v.style.cssText = 'width:100%!important;height:100%!important;object-fit:cover;border-radius:16px;'; }
+      }, 500);
+
+    } catch (err) {
+      document.getElementById('qrHint').textContent = '❌ Camera denied. Allow camera access and try again.';
+      console.error('Scanner error:', err);
+      scannerOpen = false;
+    }
+  }
+
+  function onQRDetected(text) {
+    if (!scannerOpen) return;
+
+    // Flash green + vibrate
+    document.getElementById('qrDetected').style.display = 'flex';
+    document.getElementById('qrHint').textContent = '✅ Got it: ' + text;
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+    setTimeout(async () => {
+      await closeScanner();
+      document.getElementById('wbInput').value = text.toUpperCase().trim();
+      lookupGuest();
+    }, 700);
+  }
+
+  async function closeScanner() {
+    scannerOpen = false;
+    try {
+      if (html5QrScanner && html5QrScanner.isScanning) {
+        await html5QrScanner.stop();
+        html5QrScanner.clear();
+      }
+    } catch {}
+    html5QrScanner = null;
+    document.getElementById('qrVideo').style.display = 'block';
+    document.getElementById('qrModal').classList.remove('open');
+  }
+
+  // Close scanner if user navigates away
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && scannerOpen) closeScanner();
+  });
+
+  // ── Init ───────────────────────────────────────────────────────
+  checkServer();
+  setInterval(checkServer, 10000);
+  loadRides();
+</script>
+</body>
+</html>

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RideSnap – Staff Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:     #0d0f17;
+      --surf:   #141824;
+      --surf2:  #1c2030;
+      --border: #272d3f;
+      --text:   #f0f2f8;
+      --sub:    #7c8599;
+      --yellow: #fbbf24;
+      --green:  #34d399;
+      --red:    #fb7185;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(251,191,36,.1), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 110%, rgba(96,165,250,.07), transparent);
+    }
+
+    .login-wrap {
+      width: 100%; max-width: 400px;
+      animation: fadeUp .5s ease;
+    }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+    /* LOGO */
+    .logo-area { text-align: center; margin-bottom: 36px; }
+    .logo-icon {
+      width: 64px; height: 64px; background: var(--yellow);
+      border-radius: 18px; display: inline-flex; align-items: center;
+      justify-content: center; font-size: 30px; margin-bottom: 14px;
+      box-shadow: 0 8px 32px rgba(251,191,36,.3);
+    }
+    .logo-name {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 36px; letter-spacing: 3px; color: var(--text);
+    }
+    .logo-name span { color: var(--yellow); }
+    .logo-sub { font-size: 12px; color: var(--sub); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+
+    /* CARD */
+    .card {
+      background: var(--surf); border: 1px solid var(--border);
+      border-radius: 20px; padding: 32px 28px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    }
+    .card-title { font-family: 'Bebas Neue', cursive; font-size: 22px; letter-spacing: 1px; margin-bottom: 4px; }
+    .card-sub   { font-size: 12px; color: var(--sub); margin-bottom: 28px; }
+
+    /* FIELDS */
+    .field { margin-bottom: 18px; }
+    .field label { font-size: 11px; letter-spacing: 1.5px; color: var(--sub); display: block; margin-bottom: 8px; text-transform: uppercase; }
+    .field-wrap { position: relative; }
+    .field-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; }
+    .field input {
+      width: 100%; padding: 12px 14px 12px 42px;
+      background: var(--surf2); border: 1px solid var(--border);
+      border-radius: 12px; color: var(--text);
+      font-family: 'DM Mono', monospace; font-size: 14px; outline: none;
+      transition: border .15s, box-shadow .15s;
+    }
+    .field input:focus { border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(251,191,36,.12); }
+    .field input::placeholder { color: #3a4258; }
+
+    /* SHOW PASSWORD */
+    .show-pw {
+      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--sub); cursor: pointer;
+      font-size: 14px; padding: 0;
+    }
+    .show-pw:hover { color: var(--text); }
+
+    /* ERROR */
+    .error-box {
+      display: none; background: rgba(251,113,133,.08);
+      border: 1px solid rgba(251,113,133,.3);
+      border-radius: 10px; padding: 12px 16px;
+      font-size: 12px; color: var(--red); margin-bottom: 16px;
+      align-items: center; gap: 8px;
+    }
+    .error-box.show { display: flex; }
+
+    /* LOGIN BUTTON */
+    .login-btn {
+      width: 100%; padding: 14px;
+      background: var(--yellow); color: #0d0f17;
+      border: none; border-radius: 14px;
+      font-family: 'Bebas Neue', cursive;
+      font-size: 18px; letter-spacing: 2px;
+      cursor: pointer; transition: all .2s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-top: 8px;
+    }
+    .login-btn:hover { background: #fcd34d; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(251,191,36,.3); }
+    .login-btn:active { transform: translateY(0); }
+    .login-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* FOOTER */
+    .footer { text-align: center; margin-top: 28px; font-size: 11px; color: var(--sub); }
+    .footer span { color: var(--yellow); }
+
+    /* ROLE BADGES (shown after wrong role) */
+    .role-hint { display: none; text-align: center; margin-top: 16px; }
+    .role-hint.show { display: block; }
+    .role-tag {
+      display: inline-block; padding: 4px 12px; border-radius: 20px;
+      font-size: 11px; font-weight: 600; margin: 3px;
+    }
+    .r-admin      { background: rgba(251,191,36,.15); color: var(--yellow); }
+    .r-photographer { background: rgba(96,165,250,.15); color: #60a5fa; }
+    .r-counter    { background: rgba(52,211,153,.15); color: var(--green); }
+    .r-print      { background: rgba(167,139,250,.15); color: #a78bfa; }
+  </style>
+</head>
+<body>
+
+<div class="login-wrap">
+
+  <!-- Logo -->
+  <div class="logo-area">
+    <div class="logo-icon">📸</div>
+    <div class="logo-name">RIDE<span>SNAP</span></div>
+    <div class="logo-sub">Staff Portal</div>
+  </div>
+
+  <!-- Card -->
+  <div class="card">
+    <div class="card-title">Welcome Back</div>
+    <div class="card-sub">Sign in with your staff credentials</div>
+
+    <!-- Error -->
+    <div class="error-box" id="errorBox">
+      <span>⚠️</span>
+      <span id="errorMsg">Invalid username or password</span>
+    </div>
+
+    <!-- Username -->
+    <div class="field">
+      <label>Username</label>
+      <div class="field-wrap">
+        <span class="field-icon">👤</span>
+        <input type="text" id="username" placeholder="Enter username"
+               onkeydown="if(event.key==='Enter') login()" autocomplete="username"/>
+      </div>
+    </div>
+
+    <!-- Password -->
+    <div class="field">
+      <label>Password</label>
+      <div class="field-wrap">
+        <span class="field-icon">🔑</span>
+        <input type="password" id="password" placeholder="Enter password"
+               onkeydown="if(event.key==='Enter') login()" autocomplete="current-password"/>
+        <button class="show-pw" onclick="togglePw()" id="showPwBtn" type="button">👁</button>
+      </div>
+    </div>
+
+    <!-- Login button -->
+    <button class="login-btn" id="loginBtn" onclick="login()">
+      Login →
+    </button>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    RideSnap <span>Park Photo System</span> · Staff access only
+  </div>
+
+</div>
+
+<script>
+  const API = (window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1')
+    ? 'http://localhost:5000/api' : window.location.origin+'/api';
+
+  // If already logged in — redirect
+  window.onload = () => {
+    const token = localStorage.getItem('rs_token');
+    const role  = localStorage.getItem('rs_role');
+    if (token && role) {
+      // Verify token is still valid
+      fetch(`${API}/auth/verify`, { headers: { 'x-auth-token': token } })
+        .then(r => r.json())
+        .then(d => {
+          if (d.success) redirectByRole(role);
+        })
+        .catch(() => {});
+    }
+    document.getElementById('username').focus();
+  };
+
+  function togglePw() {
+    const inp = document.getElementById('password');
+    inp.type  = inp.type === 'password' ? 'text' : 'password';
+  }
+
+  async function login() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const btn      = document.getElementById('loginBtn');
+    const errBox   = document.getElementById('errorBox');
+
+    if (!username || !password) {
+      showError('Please enter username and password');
+      return;
+    }
+
+    errBox.classList.remove('show');
+    btn.disabled    = true;
+    btn.textContent = 'Signing in...';
+
+    try {
+      const res  = await fetch(`${API}/auth/login`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        showError(data.error || 'Invalid credentials');
+        btn.disabled    = false;
+        btn.textContent = 'Login →';
+        return;
+      }
+
+      // Save session
+      localStorage.setItem('rs_token', data.token);
+      localStorage.setItem('rs_role',  data.user.role);
+      localStorage.setItem('rs_name',  data.user.name);
+      localStorage.setItem('rs_user',  JSON.stringify(data.user));
+
+      // Redirect based on role
+      redirectByRole(data.user.role);
+
+    } catch(e) {
+      showError('Cannot connect to server. Is it running?');
+      btn.disabled    = false;
+      btn.textContent = 'Login →';
+    }
+  }
+
+  function redirectByRole(role) {
+    const routes = {
+      admin:        '/index.html',
+      photographer: '/ridesnap.html',
+      counter:      '/photo-desk.html',
+      print:        '/print-dashboard.html',
+    };
+    window.location.href = routes[role] || '/index.html';
+  }
+
+  function showError(msg) {
+    document.getElementById('errorMsg').textContent = msg;
+    document.getElementById('errorBox').classList.add('show');
+  }
+</script>
+</body>
+</html>

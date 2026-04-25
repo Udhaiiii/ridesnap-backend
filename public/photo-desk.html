@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RideSnap – Photo Desk</title>
+    <script src="/auth.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:     #f8f7f4;
+      --surf:   #ffffff;
+      --border: #e5e2db;
+      --text:   #1a1a1a;
+      --sub:    #888;
+      --muted:  #bbb;
+      --yellow: #f59e0b;
+      --green:  #16a34a;
+      --red:    #dc2626;
+      --blue:   #2563eb;
+      --orange: #ea580c;
+    }
+    body { background: var(--bg); font-family: 'DM Mono', monospace; color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* HEADER */
+    .header {
+      background: #1a1a1a; color: #fff; padding: 0 24px; height: 52px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50; flex-shrink: 0;
+    }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 17px; }
+    .logo span { color: var(--yellow); }
+    .header-sub { font-size: 10px; color: #666; letter-spacing: 2px; }
+    .live-badge { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #aaa; }
+    .live-dot { width: 7px; height: 7px; background: #4ade80; border-radius: 50%; animation: blink 2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* LAYOUT */
+    .layout { display: flex; flex: 1; height: calc(100vh - 52px); overflow: hidden; }
+
+    /* LEFT */
+    .left {
+      width: 300px; flex-shrink: 0;
+      background: var(--surf); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow-y: auto;
+    }
+
+    .search-box { padding: 16px; border-bottom: 1px solid var(--border); }
+    .search-label { font-size: 9px; letter-spacing: 2px; color: var(--sub); text-transform: uppercase; margin-bottom: 8px; }
+    .search-row { display: flex; gap: 8px; }
+    .wb-input {
+      flex: 1; padding: 10px 14px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; font-family: 'DM Mono', monospace;
+      font-size: 14px; font-weight: 700; outline: none; color: var(--text);
+      transition: border .15s, box-shadow .15s; text-transform: uppercase;
+    }
+    .wb-input:focus { border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(245,158,11,.1); }
+    .search-btn {
+      width: 42px; height: 42px; background: #1a1a1a; color: #fff;
+      border: none; border-radius: 10px; font-size: 16px; cursor: pointer; transition: background .15s;
+    }
+    .search-btn:hover { background: #333; }
+    .search-hint { font-size: 10px; color: var(--muted); margin-top: 6px; }
+
+    .err-msg { margin: 8px 12px; padding: 10px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; font-size: 11px; color: var(--red); display: none; }
+    .err-msg.visible { display: block; }
+
+    .guest-card { margin: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: none; }
+    .guest-card.visible { display: block; }
+    .gc-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .gc-avatar { width: 38px; height: 38px; border-radius: 50%; background: #1a1a1a; color: var(--yellow); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .gc-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; }
+    .gc-wb   { font-size: 10px; color: var(--sub); }
+    .gc-row  { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 11px; }
+    .gc-row:last-child { border-bottom: none; }
+    .gc-row span:first-child { color: var(--sub); }
+    .gc-row span:last-child  { font-weight: 700; }
+
+    .photo-count { margin: 0 12px 12px; background: #fefce8; border: 1px solid #fde68a; border-radius: 10px; padding: 10px 14px; display: none; align-items: center; gap: 10px; }
+    .photo-count.visible { display: flex; }
+    .pc-num { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 24px; color: var(--yellow); }
+    .pc-text { font-size: 11px; color: var(--sub); }
+    .pc-sel  { font-size: 10px; color: var(--orange); font-weight: 700; margin-top: 2px; }
+
+    .pkg-section { padding: 12px; border-top: 1px solid var(--border); display: none; }
+    .pkg-label { font-size: 9px; letter-spacing: 2px; color: var(--sub); text-transform: uppercase; margin-bottom: 10px; }
+    .pkg-btn { width: 100%; padding: 10px 14px; margin-bottom: 8px; background: var(--surf); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all .15s; text-align: left; }
+    .pkg-btn:hover  { border-color: #aaa; background: var(--bg); }
+    .pkg-btn.active { border-color: var(--yellow); background: #fefce8; }
+    .pkg-name { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700; }
+    .pkg-desc { font-size: 10px; color: var(--sub); margin-top: 2px; }
+    .pkg-price { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 15px; color: var(--yellow); }
+
+    .guest-details { padding: 12px; border-top: 1px solid var(--border); display: none; }
+    .guest-details.visible { display: block; }
+    .gd-label { font-size: 9px; letter-spacing: 2px; color: var(--sub); text-transform: uppercase; margin-bottom: 10px; }
+    .gd-field { margin-bottom: 10px; }
+    .gd-field label { font-size: 10px; color: var(--sub); display: block; margin-bottom: 4px; }
+    .gd-field input { width: 100%; padding: 9px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; font-family: 'DM Mono', monospace; font-size: 12px; outline: none; color: var(--text); transition: border .15s; }
+    .gd-field input:focus { border-color: var(--yellow); }
+
+    .confirm-wrap { padding: 12px; border-top: 1px solid var(--border); display: none; }
+    .total-line { text-align: center; font-size: 11px; color: var(--sub); margin-bottom: 8px; display: none; }
+    .total-line.show { display: block; }
+    .total-line strong { color: var(--yellow); font-size: 14px; }
+    .confirm-btn { width: 100%; padding: 13px; background: #1a1a1a; color: #fff; border: none; border-radius: 12px; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800; cursor: pointer; transition: all .15s; letter-spacing: .5px; }
+    .confirm-btn:hover:not(:disabled) { background: #333; }
+    .confirm-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    /* RIGHT */
+    .right { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
+
+    .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; }
+    .empty-icon  { font-size: 52px; margin-bottom: 16px; }
+    .empty-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px; margin-bottom: 8px; }
+    .empty-sub   { font-size: 12px; line-height: 1.8; color: var(--sub); }
+
+    .select-hint { display: none; margin-bottom: 14px; padding: 10px 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; font-size: 11px; color: var(--blue); align-items: center; gap: 8px; }
+    .select-hint.visible { display: flex; }
+
+    .photo-grid { display: none; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
+
+    .photo-card { background: var(--surf); border: 2px solid var(--border); border-radius: 14px; overflow: hidden; cursor: pointer; transition: all .15s; position: relative; }
+    .photo-card:hover   { border-color: #aaa; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.08); }
+    .photo-card.selected { border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(245,158,11,.2); }
+
+    .photo-img-wrap { position: relative; aspect-ratio: 4/3; overflow: hidden; background: var(--bg); }
+    .photo-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-img-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 36px; color: var(--muted); }
+
+    .photo-checkbox { position: absolute; top: 10px; left: 10px; width: 26px; height: 26px; border-radius: 50%; background: var(--surf); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all .15s; box-shadow: 0 2px 6px rgba(0,0,0,.15); color: transparent; }
+    .photo-card.selected .photo-checkbox { background: var(--yellow); border-color: var(--yellow); color: #000; }
+    .photo-num { position: absolute; top: 10px; right: 10px; background: var(--yellow); color: #000; width: 24px; height: 24px; border-radius: 50%; font-size: 11px; font-weight: 700; display: none; align-items: center; justify-content: center; }
+    .photo-card.selected .photo-num { display: flex; }
+    .wm-hint { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.45); color: #fff; font-size: 9px; padding: 5px 8px; letter-spacing: 1px; text-align: center; }
+    .photo-info { padding: 12px; }
+    .photo-ride { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+    .photo-time { font-size: 10px; color: var(--sub); }
+    .photo-id   { font-size: 9px; color: var(--muted); margin-top: 2px; }
+
+    /* SUCCESS OVERLAY */
+    .success-overlay { display: none; position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.5); align-items: center; justify-content: center; padding: 20px; }
+    .success-overlay.visible { display: flex; }
+    .success-box { background: var(--surf); border-radius: 20px; padding: 28px 24px; max-width: 440px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+    .s-icon  { font-size: 44px; text-align: center; margin-bottom: 8px; }
+    .s-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; text-align: center; margin-bottom: 6px; }
+    .s-sub   { font-size: 12px; color: var(--sub); text-align: center; margin-bottom: 16px; }
+    .s-detail { background: var(--bg); border-radius: 10px; padding: 14px; margin-bottom: 16px; }
+    .s-row  { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+    .s-row:last-child { border-bottom: none; }
+    .s-row span:first-child { color: var(--sub); }
+    .s-row span:last-child  { font-weight: 700; }
+    .send-lbl { font-size: 9px; letter-spacing: 2px; color: var(--sub); text-transform: uppercase; margin-bottom: 8px; }
+    .send-btns { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+    .send-btn { width: 100%; padding: 11px; border: none; border-radius: 10px; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all .15s; }
+    .send-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .s-wa    { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .s-wa:hover:not(:disabled)    { background: #bbf7d0; }
+    .s-email { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+    .s-email:hover:not(:disabled) { background: #bfdbfe; }
+    .s-sms   { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; }
+    .s-sms:hover:not(:disabled)   { background: #ddd6fe; }
+    .send-status { font-size: 10px; text-align: center; min-height: 16px; margin-bottom: 8px; }
+    .send-ok  { color: var(--green); }
+    .send-err { color: var(--red); }
+    .s-close { width: 100%; padding: 13px; background: #1a1a1a; color: #fff; border: none; border-radius: 12px; font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: background .15s; margin-top: 4px; }
+    .s-close:hover { background: #333; }
+
+    /* PAYMENT OVERLAY */
+    .pay-overlay { display:none; position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.6); align-items:center; justify-content:center; padding:16px; }
+    .pay-overlay.visible { display:flex; }
+    .pay-box { background:var(--surf); border-radius:20px; padding:28px 24px; max-width:460px; width:100%; max-height:92vh; overflow-y:auto; box-shadow:0 24px 80px rgba(0,0,0,.25); }
+    .pay-title { font-family:'Syne',sans-serif; font-weight:800; font-size:20px; margin-bottom:4px; }
+    .pay-sub   { font-size:11px; color:var(--sub); margin-bottom:20px; }
+    .pay-total-box { background:var(--bg); border-radius:12px; padding:14px 18px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; }
+    .pay-total-label { font-size:11px; color:var(--sub); }
+    .pay-total-amt   { font-family:'Syne',sans-serif; font-weight:800; font-size:24px; color:var(--yellow); }
+
+    /* Mode buttons */
+    .pay-modes { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+    .pay-mode-btn {
+      padding:14px 10px; border-radius:12px;
+      border:2px solid var(--border); background:var(--bg);
+      cursor:pointer; text-align:center; transition:all .15s;
+      display:flex; flex-direction:column; align-items:center; gap:6px;
+    }
+    .pay-mode-btn:hover { border-color:#aaa; }
+    .pay-mode-btn.active { border-color:var(--yellow); background:#fefce8; }
+    .pay-mode-btn.active .pm-icon { transform:scale(1.1); }
+    .pm-icon  { font-size:26px; }
+    .pm-label { font-size:11px; font-weight:700; color:var(--text); }
+    .pm-desc  { font-size:9px; color:var(--sub); }
+
+    /* UPI QR box */
+    .upi-box { display:none; background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:16px; text-align:center; margin-bottom:16px; }
+    .upi-box.visible { display:block; }
+    .upi-qr-wrap { width:160px; height:160px; margin:0 auto 12px; background:#fff; border-radius:10px; display:flex; align-items:center; justify-content:center; border:1px solid var(--border); overflow:hidden; }
+    .upi-id-text  { font-family:'DM Mono',monospace; font-size:13px; font-weight:700; color:var(--text); }
+    .upi-name     { font-size:10px; color:var(--sub); margin-top:2px; }
+
+    /* Split payment */
+    .split-section { display:none; margin-bottom:16px; }
+    .split-section.visible { display:block; }
+    .split-label { font-size:9px; letter-spacing:2px; color:var(--sub); text-transform:uppercase; margin-bottom:10px; }
+    .split-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+    .split-mode-sel {
+      flex:1; padding:9px 12px; background:var(--bg); border:1px solid var(--border);
+      border-radius:8px; font-family:'DM Mono',monospace; font-size:12px; outline:none;
+    }
+    .split-amt {
+      width:100px; padding:9px 12px; background:var(--bg); border:1px solid var(--border);
+      border-radius:8px; font-family:'DM Mono',monospace; font-size:12px; outline:none; color:var(--text);
+    }
+    .split-remove { width:30px; height:30px; background:var(--bg); border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; }
+    .split-remove:hover { background:#fef2f2; border-color:#fecaca; color:var(--red); }
+    .add-split-btn { width:100%; padding:9px; background:var(--bg); border:1px dashed var(--border); border-radius:8px; font-family:'DM Mono',monospace; font-size:11px; color:var(--sub); cursor:pointer; transition:all .15s; }
+    .add-split-btn:hover { border-color:#aaa; color:var(--text); }
+    .split-balance { display:flex; justify-content:space-between; font-size:11px; padding:8px 0; border-top:1px solid var(--border); margin-top:8px; }
+    .split-balance .bal-key { color:var(--sub); }
+    .split-balance .bal-val { font-weight:700; }
+    .bal-ok  { color:var(--green); }
+    .bal-err { color:var(--red); }
+
+    /* Pay confirm btn */
+    .pay-confirm-btn { width:100%; padding:14px; background:#1a1a1a; color:#fff; border:none; border-radius:12px; font-family:'Syne',sans-serif; font-size:14px; font-weight:800; cursor:pointer; transition:all .15s; margin-bottom:8px; }
+    .pay-confirm-btn:hover:not(:disabled) { background:#333; }
+    .pay-confirm-btn:disabled { opacity:.4; cursor:not-allowed; }
+    .pay-cancel-btn { width:100%; padding:11px; background:var(--bg); color:var(--sub); border:1px solid var(--border); border-radius:12px; font-family:'DM Mono',monospace; font-size:12px; cursor:pointer; transition:all .15s; }
+    .pay-cancel-btn:hover { border-color:#aaa; color:var(--text); }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="logo">🎟️ RideSnap <span>Photo Desk</span></div>
+    <div class="header-sub">STAFF COUNTER · SCAN GUEST WRISTBAND</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+    <div style="font-size:11px;color:#555;font-family:'DM Mono',monospace">👤 <span id="hdrUserName">—</span></div>
+    <button onclick="rsLogout()" style="background:#2a2a2a;border:1px solid #7f1d1d;color:#f87171;padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;transition:all .15s" onmouseover="this.style.background='#3a1a1a'" onmouseout="this.style.background='#2a2a2a'">⏻ Logout</button>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- LEFT -->
+  <div class="left">
+    <div class="search-box">
+      <div class="search-label">Scan or Type Wristband ID</div>
+      <div class="search-row">
+        <input class="wb-input" type="text" id="wbInput" placeholder="WB-0001"
+               onkeydown="if(event.key==='Enter') search()"/>
+        <button class="search-btn" onclick="search()">🔍</button>
+      </div>
+      <div class="search-hint">Press Enter or click 🔍 after scanning</div>
+    </div>
+
+    <div class="err-msg" id="errMsg"></div>
+
+    <div class="guest-card" id="guestCard">
+      <div class="gc-head">
+        <div class="gc-avatar">👤</div>
+        <div>
+          <div class="gc-name" id="gcName">—</div>
+          <div class="gc-wb"  id="gcWB">—</div>
+        </div>
+      </div>
+      <div class="gc-row"><span>Phone</span>      <span id="gcPhone">—</span></div>
+      <div class="gc-row"><span>Entry Time</span> <span id="gcEntry">—</span></div>
+      <div class="gc-row"><span>Photos</span>     <span id="gcPhotos" style="color:var(--yellow)">—</span></div>
+    </div>
+
+    <div class="photo-count" id="photoCount">
+      <div class="pc-num" id="pcNum">0</div>
+      <div>
+        <div class="pc-text">photos found</div>
+        <div class="pc-sel" id="pcSel">Tap to select (multi ok)</div>
+      </div>
+    </div>
+
+    <div class="pkg-section" id="pricingPanel">
+      <div class="pkg-label">Select Package</div>
+      <button class="pkg-btn" id="pb-digital" onclick="selectPkg('digital')">
+        <div><div class="pkg-name">📱 Digital Copy</div><div class="pkg-desc">Email / WhatsApp / SMS · 7 days</div></div>
+        <div class="pkg-price" id="price-digital">₹150</div>
+      </button>
+      <button class="pkg-btn" id="pb-print" onclick="selectPkg('print')">
+        <div><div class="pkg-name">🖨️ Print Copy</div><div class="pkg-desc">Physical print · counter pickup</div></div>
+        <div class="pkg-price" id="price-print">₹250</div>
+      </button>
+      <button class="pkg-btn" id="pb-frame" onclick="selectPkg('frame')">
+        <div><div class="pkg-name">🖼️ Framed Print</div><div class="pkg-desc">A4 framed · premium</div></div>
+        <div class="pkg-price" id="price-frame">₹350</div>
+      </button>
+      <button class="pkg-btn" id="pb-combo" onclick="selectPkg('combo')">
+        <div><div class="pkg-name">⭐ Combo Pack</div><div class="pkg-desc">Digital + Print together</div></div>
+        <div class="pkg-price" id="price-combo">₹499</div>
+      </button>
+    </div>
+
+    <div class="guest-details" id="guestDetails">
+      <div class="gd-label">Guest Details</div>
+      <div class="gd-field">
+        <label>Name</label>
+        <input type="text" id="guestNameInput" placeholder="Guest name (optional)"/>
+      </div>
+      <div class="gd-field">
+        <label>📱 Phone (WhatsApp / SMS)</label>
+        <input type="tel" id="phoneInput" placeholder="10-digit number" maxlength="10"
+               oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
+      </div>
+      <div class="gd-field" id="emailField">
+        <label>📧 Email</label>
+        <input type="email" id="emailInput" placeholder="guest@email.com"/>
+      </div>
+    </div>
+
+    <div class="confirm-wrap" id="confirmWrap">
+      <div class="total-line" id="totalLine">Total: <strong id="totalAmt">₹0</strong></div>
+      <button class="confirm-btn" id="confirmBtn" onclick="openPayment()" disabled>Confirm Order</button>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🎢</div>
+      <div class="empty-title">Scan a Wristband</div>
+      <div class="empty-sub">Scan the guest's QR wristband<br/>or type their WB number on the left<br/><br/><span style="color:var(--muted)">e.g. WB-0001, BLR-0001</span></div>
+    </div>
+    <div class="select-hint" id="selectHint">
+      💡 Tap photos to select — you can select <strong>&nbsp;multiple photos&nbsp;</strong> for one order
+    </div>
+    <div class="photo-grid" id="photoGrid"></div>
+  </div>
+
+</div>
+
+<!-- SUCCESS OVERLAY -->
+<div class="success-overlay" id="successOverlay">
+  <div class="success-box">
+    <div class="s-icon">🎉</div>
+    <div class="s-title">Order Placed!</div>
+    <div class="s-sub" id="sSubText">—</div>
+    <div class="s-detail" id="sDetail"></div>
+    <div id="sendSection">
+      <div class="send-lbl">Send Photo Link To Guest</div>
+      <div class="send-btns">
+        <button class="send-btn s-wa"    id="btnWA"    onclick="sendWhatsApp()">💬 Send via WhatsApp</button>
+        <button class="send-btn s-email" id="btnEmail" onclick="sendEmail()">📧 Send via Email</button>
+        <button class="send-btn s-sms"   id="btnSMS"   onclick="sendSMS()">📱 Send via SMS</button>
+      </div>
+      <div class="send-status" id="sendStatus"></div>
+    </div>
+    <button class="s-close" onclick="closeSuccess()">✓ Next Guest</button>
+  </div>
+</div>
+
+<!-- PAYMENT OVERLAY -->
+<div class="pay-overlay" id="payOverlay">
+  <div class="pay-box">
+    <div class="pay-title">💳 Select Payment</div>
+    <div class="pay-sub">Choose how the guest would like to pay</div>
+
+    <!-- Order total -->
+    <div class="pay-total-box">
+      <div>
+        <div class="pay-total-label">ORDER TOTAL</div>
+        <div style="font-size:11px;color:var(--sub)" id="payOrderSummary">—</div>
+      </div>
+      <div class="pay-total-amt" id="payTotalAmt">₹0</div>
+    </div>
+
+    <!-- Payment mode buttons -->
+    <div class="pay-modes">
+      <button class="pay-mode-btn" id="pm-cash" onclick="selectPayMode('cash')">
+        <div class="pm-icon">💵</div>
+        <div class="pm-label">Cash</div>
+        <div class="pm-desc">Physical cash</div>
+      </button>
+      <button class="pay-mode-btn" id="pm-upi" onclick="selectPayMode('upi')">
+        <div class="pm-icon">📱</div>
+        <div class="pm-label">UPI / QR</div>
+        <div class="pm-desc">GPay, PhonePe, Paytm</div>
+      </button>
+      <button class="pay-mode-btn" id="pm-card" onclick="selectPayMode('card')">
+        <div class="pm-icon">💳</div>
+        <div class="pm-label">Card</div>
+        <div class="pm-desc">Debit / Credit</div>
+      </button>
+      <button class="pay-mode-btn" id="pm-split" onclick="selectPayMode('split')">
+        <div class="pm-icon">✂️</div>
+        <div class="pm-label">Split</div>
+        <div class="pm-desc">Multiple modes</div>
+      </button>
+    </div>
+
+    <!-- UPI QR (shows when UPI selected) -->
+    <div class="upi-box" id="upiBox">
+      <div class="upi-qr-wrap" id="upiQrWrap">
+        <div style="font-size:11px;color:var(--sub);padding:20px;text-align:center">Loading QR...</div>
+      </div>
+      <div class="upi-id-text" id="upiIdText">—</div>
+      <div class="upi-name" id="upiNameText">—</div>
+      <div id="upiAmtDisplay" style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:var(--yellow);margin:6px 0"></div>
+      <div style="font-size:10px;color:var(--sub);margin-top:4px">Scan with GPay · PhonePe · Paytm · Any UPI app</div>
+    </div>
+
+    <!-- Split payment rows -->
+    <div class="split-section" id="splitSection">
+      <div class="split-label">Split Payment Details</div>
+      <div id="splitRows"></div>
+      <button class="add-split-btn" onclick="addSplitRow()">+ Add Another Payment Mode</button>
+      <div class="split-balance">
+        <span class="bal-key">Remaining</span>
+        <span class="bal-val" id="splitBalance">₹0</span>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <button class="pay-confirm-btn" id="payConfirmBtn" onclick="confirmPayment()" disabled>
+      ✅ Payment Received — Place Order
+    </button>
+    <button class="pay-cancel-btn" onclick="closePayment()">← Back</button>
+  </div>
+</div>
+
+<script>
+
+  // Auth check
+  (async () => {
+    const user = await requireAuth(["counter", "admin"]);
+    if (user) injectUserBar('Photo Desk');
+  })();
+
+  const API = (window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1')
+    ? 'http://localhost:5000/api' : window.location.origin+'/api';
+
+  let livePrices    = {digital:150,print:250,frame:350,combo:499};
+  let currentVisitId = null;
+  let currentPhotos  = [];
+  let selectedPhotos = [];
+  let selectedPkg    = null;
+  let currentOrders  = [];
+
+  window.onload = () => { document.getElementById('wbInput').focus(); loadConfig(); const n=rsGetName(); if(n && document.getElementById('hdrUserName')) document.getElementById('hdrUserName').textContent=n; };
+
+  let upiId   = '';
+  let upiName = '';
+
+  async function loadConfig() {
+    try {
+      const d = await (await fetch(`${API}/config`)).json();
+      if (!d.success) return;
+      livePrices = d.prices;
+      ['digital','print','frame','combo'].forEach(p => {
+        const el = document.getElementById('price-'+p);
+        if (el) el.textContent = '₹'+d.prices[p];
+      });
+      if (d.payment) {
+        upiId   = d.payment.upi_id   || '';
+        upiName = d.payment.upi_name || 'Park';
+      }
+    } catch(e){}
+  }
+
+  async function search() {
+    const val = document.getElementById('wbInput').value.trim().toUpperCase();
+    if (!val) return;
+    hideError(); resetSelection();
+    try {
+      const res  = await fetch(`${API}/visits/${val}`);
+      const data = await res.json();
+      if (!data.success) { showError(data.error||'Wristband not found'); return; }
+
+      currentVisitId = data.visit?.id || val;
+      currentPhotos  = data.photos || [];
+
+      document.getElementById('gcName').textContent   = data.visit?.guest_name||'Guest';
+      document.getElementById('gcWB').textContent     = currentVisitId;
+      document.getElementById('gcPhone').textContent  = data.visit?.phone||'—';
+      document.getElementById('gcEntry').textContent  = fmt(data.visit?.entry_time);
+      document.getElementById('gcPhotos').textContent = currentPhotos.length+' photos';
+      document.getElementById('guestCard').classList.add('visible');
+
+      if (data.visit?.guest_name && data.visit.guest_name!=='Guest')
+        document.getElementById('guestNameInput').value = data.visit.guest_name;
+      if (data.visit?.phone)  document.getElementById('phoneInput').value = data.visit.phone;
+      if (data.visit?.email)  document.getElementById('emailInput').value = data.visit.email;
+
+      document.getElementById('pcNum').textContent = currentPhotos.length;
+      document.getElementById('photoCount').classList.add('visible');
+      document.getElementById('pricingPanel').style.display  = 'block';
+      document.getElementById('guestDetails').classList.add('visible');
+      document.getElementById('confirmWrap').style.display   = 'block';
+
+      if (currentPhotos.length===0) {
+        document.getElementById('emptyState').style.display='flex';
+        document.getElementById('emptyState').querySelector('.empty-title').textContent='No Photos Yet';
+        document.getElementById('emptyState').querySelector('.empty-sub').textContent='No photos uploaded for this wristband today.\nAsk photographer to upload first.';
+        document.getElementById('photoGrid').style.display='none';
+      } else {
+        renderPhotos(currentPhotos);
+      }
+    } catch(e) { showError('Cannot connect to server. Is it running?'); }
+  }
+
+  function renderPhotos(photos) {
+    document.getElementById('emptyState').style.display='none';
+    document.getElementById('selectHint').classList.add('visible');
+    const grid = document.getElementById('photoGrid');
+    grid.style.display='grid'; grid.innerHTML='';
+    photos.forEach(ph => {
+      const card = document.createElement('div');
+      card.className='photo-card'; card.id='card_'+ph.id;
+      card.onclick=()=>togglePhoto(ph);
+      const src = ph.s3_url||ph.watermark_url||'';
+      card.innerHTML=`
+        <div class="photo-img-wrap">
+          ${src?`<img src="${src}" class="photo-img" alt="Photo"
+              onerror="this.parentElement.innerHTML='<div class=\\'photo-img-placeholder\\'>📸</div>'">`
+              :`<div class="photo-img-placeholder">📸</div>`}
+          <div class="photo-checkbox" id="chk_${ph.id}">✓</div>
+          <div class="photo-num" id="num_${ph.id}">1</div>
+          <div class="wm-hint">WATERMARKED PREVIEW</div>
+        </div>
+        <div class="photo-info">
+          <div class="photo-ride">🎢 ${ph.ride_name||'Unknown Ride'}</div>
+          <div class="photo-time">${fmt(ph.captured_at)}</div>
+          <div class="photo-id">${ph.id}</div>
+        </div>`;
+      grid.appendChild(card);
+    });
+  }
+
+  function togglePhoto(photo) {
+    const idx = selectedPhotos.findIndex(p=>p.id===photo.id);
+    if (idx===-1) { selectedPhotos.push(photo); document.getElementById('card_'+photo.id)?.classList.add('selected'); }
+    else          { selectedPhotos.splice(idx,1); document.getElementById('card_'+photo.id)?.classList.remove('selected'); }
+    selectedPhotos.forEach((p,i)=>{ const n=document.getElementById('num_'+p.id); if(n) n.textContent=i+1; });
+    const cnt=selectedPhotos.length;
+    document.getElementById('pcSel').textContent = cnt===0?'Tap to select (multi ok)':cnt===1?'1 photo selected':`${cnt} photos selected`;
+    updateConfirmBtn();
+  }
+
+  function selectPkg(pkg) {
+    selectedPkg=pkg;
+    ['digital','print','frame','combo'].forEach(p=>document.getElementById('pb-'+p)?.classList.toggle('active',p===pkg));
+    document.getElementById('emailField').style.display=(pkg==='digital'||pkg==='combo')?'block':'none';
+    updateConfirmBtn();
+  }
+
+  function updateConfirmBtn() {
+    const btn   = document.getElementById('confirmBtn');
+    const ready = selectedPhotos.length>0 && selectedPkg && currentVisitId;
+    btn.disabled= !ready;
+    if (ready) {
+      const total = livePrices[selectedPkg]*selectedPhotos.length;
+      btn.textContent = selectedPhotos.length>1
+        ? `Confirm — ${selectedPhotos.length}× ${getPkgLabel(selectedPkg)} = ₹${total}`
+        : `Confirm — ${getPkgLabel(selectedPkg)} ₹${livePrices[selectedPkg]}`;
+      document.getElementById('totalAmt').textContent='₹'+total;
+      document.getElementById('totalLine').classList.add('show');
+    } else {
+      btn.textContent='Confirm Order';
+      document.getElementById('totalLine').classList.remove('show');
+    }
+  }
+
+  async function placeOrder(payMode, paySplits) {
+    if (!selectedPhotos.length||!selectedPkg||!currentVisitId) return;
+    const guestName=document.getElementById('guestNameInput').value.trim();
+    const phone    =document.getElementById('phoneInput').value.trim();
+    const email    =document.getElementById('emailInput').value.trim();
+    const btn=document.getElementById('confirmBtn');
+    btn.disabled=true; btn.textContent='Processing...';
+    try {
+      if (guestName||phone||email) {
+        await fetch(`${API}/visits/${currentVisitId}/details`,{
+          method:'PATCH',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({guest_name:guestName,phone,email})
+        });
+      }
+      const ids      = selectedPhotos.map(p=>p.id);
+      const isBulk   = ids.length>1;
+      const endpoint = isBulk ? `${API}/orders/bulk` : `${API}/orders`;
+      const baseBody = {
+        visit_id:currentVisitId, order_type:selectedPkg,
+        email:email||null,
+        payment_mode:   payMode   || 'cash',
+        payment_splits: paySplits || null,
+      };
+      const body = isBulk
+        ? {...baseBody, photo_ids:ids}
+        : {...baseBody, photo_id:ids[0]};
+      const res  = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      currentOrders = data.orders||(data.order?[data.order]:[]);
+      showSuccess(currentOrders,{name:guestName,phone,email,payMode,paySplits});
+    } catch(e) {
+      alert('Order failed: '+e.message);
+      btn.disabled=false; updateConfirmBtn();
+    }
+  }
+
+  function showSuccess(orders,guest) {
+    const pkg=orders[0]?.order_type||selectedPkg;
+    const isPrint=pkg==='print'||pkg==='frame'||pkg==='combo';
+    const total=orders.reduce((s,o)=>s+(o.price||0),0);
+    document.getElementById('sSubText').innerHTML=isPrint
+      ?'🖨️ Added to <strong>print queue</strong> — guest collects at counter'
+      :'✅ Order confirmed';
+    // Build payment display
+    const payModeLabels = {cash:'💵 Cash',upi:'📱 UPI',card:'💳 Card',split:'✂️ Split',razorpay:'🔗 Razorpay'};
+    let payDisplay = payModeLabels[guest?.payMode] || '💵 Cash';
+    if (guest?.paySplits) {
+      const splits = JSON.parse(guest.paySplits);
+      payDisplay = splits.map(s=>`${payModeLabels[s.mode]||s.mode} ₹${s.amount}`).join(' + ');
+    }
+    document.getElementById('sDetail').innerHTML=`
+      <div class="s-row"><span>Orders</span><span>${orders.length} photo${orders.length>1?'s':''}</span></div>
+      <div class="s-row"><span>Package</span><span>${getPkgLabel(pkg)}</span></div>
+      <div class="s-row"><span>Total</span><span style="color:var(--yellow)">₹${total}</span></div>
+      <div class="s-row"><span>Payment</span><span>${payDisplay}</span></div>
+      ${orders.map(o=>`<div class="s-row"><span>${o.id}</span><span>₹${o.price}</span></div>`).join('')}
+      ${guest?.name?`<div class="s-row"><span>Guest</span><span>${guest.name}</span></div>`:''}
+      ${guest?.phone?`<div class="s-row"><span>Phone</span><span>${guest.phone}</span></div>`:''}`;
+    ['btnWA','btnEmail','btnSMS'].forEach(id=>{
+      const el=document.getElementById(id); el.disabled=false;
+      el.textContent=id==='btnWA'?'💬 Send via WhatsApp':id==='btnEmail'?'📧 Send via Email':'📱 Send via SMS';
+    });
+    document.getElementById('sendStatus').textContent='';
+    document.getElementById('successOverlay').classList.add('visible');
+  }
+
+  function closeSuccess() {
+    document.getElementById('successOverlay').classList.remove('visible');
+    ['wbInput','guestNameInput','phoneInput','emailInput'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('wbInput').focus();
+    currentVisitId=null; currentPhotos=[]; currentOrders=[];
+    resetSelection();
+    ['guestCard','photoCount','guestDetails','selectHint'].forEach(id=>{
+      document.getElementById(id).classList.remove('visible');
+    });
+    document.getElementById('pricingPanel').style.display='none';
+    document.getElementById('confirmWrap').style.display='none';
+    document.getElementById('photoGrid').style.display='none';
+    document.getElementById('photoGrid').innerHTML='';
+    document.getElementById('emptyState').style.display='';
+    ['digital','print','frame','combo'].forEach(p=>document.getElementById('pb-'+p)?.classList.remove('active'));
+  }
+
+  function resetSelection() {
+    selectedPhotos=[]; selectedPkg=null;
+    document.querySelectorAll('.photo-card.selected').forEach(c=>c.classList.remove('selected'));
+    document.getElementById('pcSel').textContent='Tap to select (multi ok)';
+    if(document.getElementById('confirmBtn')) updateConfirmBtn();
+  }
+
+  function setSendStatus(msg,ok) {
+    const el=document.getElementById('sendStatus');
+    el.textContent=msg; el.className='send-status '+(ok?'send-ok':'send-err');
+  }
+
+  async function sendWhatsApp() {
+    const phone=document.getElementById('phoneInput').value.trim();
+    const orderId=currentOrders[0]?.id; if(!orderId) return;
+    const btn=document.getElementById('btnWA');
+    btn.disabled=true; btn.textContent='⏳ Getting link...';
+    try {
+      const d=await(await fetch(`${API}/send/whatsapp-link`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order_id:orderId,phone})})).json();
+      if(!d.success) throw new Error(d.error);
+      window.open(d.whatsapp_url,'_blank');
+      btn.textContent='✅ WhatsApp Opened!';
+      setSendStatus('💬 WhatsApp opened — guest taps Send!',true);
+    } catch(e){ btn.disabled=false; btn.textContent='💬 Send via WhatsApp'; setSendStatus('❌ '+e.message,false); }
+  }
+
+  async function sendEmail() {
+    const email=document.getElementById('emailInput').value.trim();
+    const orderId=currentOrders[0]?.id;
+    if(!email){setSendStatus('❌ Enter email first',false);return;}
+    if(!orderId) return;
+    const btn=document.getElementById('btnEmail');
+    btn.disabled=true; btn.textContent='⏳ Sending...';
+    try {
+      const d=await(await fetch(`${API}/send/email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order_id:orderId,email})})).json();
+      if(!d.success) throw new Error(d.error);
+      btn.textContent='✅ Email Sent!'; setSendStatus('📧 Sent to '+email,true);
+    } catch(e){ btn.disabled=false; btn.textContent='📧 Send via Email'; setSendStatus('❌ '+e.message,false); }
+  }
+
+  async function sendSMS() {
+    const phone=document.getElementById('phoneInput').value.trim();
+    const orderId=currentOrders[0]?.id;
+    if(!phone||phone.length<10){setSendStatus('❌ Enter 10-digit phone first',false);return;}
+    if(!orderId) return;
+    const btn=document.getElementById('btnSMS');
+    btn.disabled=true; btn.textContent='⏳ Sending...';
+    try {
+      const d=await(await fetch(`${API}/send/sms`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order_id:orderId,phone})})).json();
+      if(!d.success) throw new Error(d.error);
+      btn.textContent='✅ SMS Sent!'; setSendStatus('📱 SMS sent to '+phone,true);
+    } catch(e){ btn.disabled=false; btn.textContent='📱 Send via SMS'; setSendStatus('❌ '+e.message,false); }
+  }
+
+  // ── PAYMENT SYSTEM ───────────────────────────────────────────
+  let selectedPayMode = null;
+  let payTotal        = 0;
+  let splitRows       = [];
+
+  function openPayment() {
+    if (!selectedPhotos.length || !selectedPkg) return;
+    payTotal = livePrices[selectedPkg] * selectedPhotos.length;
+    selectedPayMode = null;
+    splitRows = [];
+
+    // Reset modes
+    ['cash','upi','card','split'].forEach(m => document.getElementById('pm-'+m)?.classList.remove('active'));
+    document.getElementById('upiBox').classList.remove('visible');
+    document.getElementById('splitSection').classList.remove('visible');
+    document.getElementById('splitRows').innerHTML = '';
+    document.getElementById('payConfirmBtn').disabled = true;
+
+    // Fill summary
+    document.getElementById('payTotalAmt').textContent = '₹'+payTotal;
+    document.getElementById('payOrderSummary').textContent =
+      selectedPhotos.length+'× '+getPkgLabel(selectedPkg)+' @ ₹'+livePrices[selectedPkg]+' each';
+
+    document.getElementById('payOverlay').classList.add('visible');
+  }
+
+  function closePayment() {
+    document.getElementById('payOverlay').classList.remove('visible');
+  }
+
+  function selectPayMode(mode) {
+    selectedPayMode = mode;
+    ['cash','upi','card','split'].forEach(m => document.getElementById('pm-'+m)?.classList.remove('active'));
+    document.getElementById('pm-'+mode)?.classList.add('active');
+
+    // Show/hide UPI QR
+    const upiBox = document.getElementById('upiBox');
+    if (mode === 'upi') {
+      upiBox.classList.add('visible');
+      renderUpiQr();
+    } else {
+      upiBox.classList.remove('visible');
+    }
+
+    // Show/hide split
+    const splitSec = document.getElementById('splitSection');
+    if (mode === 'split') {
+      splitSec.classList.add('visible');
+      if (splitRows.length === 0) { addSplitRow(); addSplitRow(); }
+    } else {
+      splitSec.classList.remove('visible');
+    }
+
+    updatePayConfirmBtn();
+  }
+
+  function renderUpiQr() {
+    const wrap = document.getElementById('upiQrWrap');
+    document.getElementById('upiIdText').textContent     = upiId   || 'UPI ID not set in .env';
+    document.getElementById('upiNameText').textContent    = upiName || '';
+    document.getElementById('upiAmtDisplay').textContent  = '₹' + payTotal;
+
+    if (!upiId) {
+      wrap.innerHTML = '<div style="font-size:11px;color:var(--red);padding:20px;text-align:center">Set UPI_ID in .env file</div>';
+      return;
+    }
+
+    wrap.innerHTML = '';
+    // Build UPI deep link
+    // UPI deep link — pa (payee address) must NOT be encoded
+    // Standard format: upi://pay?pa=id@upi&pn=Name&am=Amount&cu=INR&tn=Note
+    const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${payTotal}&cu=INR&tn=${encodeURIComponent('RideSnap Photo')}`;
+    try {
+      new QRCode(wrap, {
+        text:         upiLink,
+        width:        148,
+        height:       148,
+        colorDark:    '#1a1a1a',
+        colorLight:   '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M,
+      });
+    } catch(e) {
+      wrap.innerHTML = '<div style="font-size:10px;color:var(--sub);padding:10px">QR lib not loaded</div>';
+    }
+  }
+
+  // ── SPLIT ROWS ────────────────────────────────────────────────
+  function addSplitRow() {
+    const id = Date.now();
+    splitRows.push(id);
+    const div = document.createElement('div');
+    div.className = 'split-row';
+    div.id = 'sr-'+id;
+    div.innerHTML = `
+      <select class="split-mode-sel" id="smode-${id}" onchange="updateSplitBalance()">
+        <option value="cash">💵 Cash</option>
+        <option value="upi">📱 UPI</option>
+        <option value="card">💳 Card</option>
+      </select>
+      <input class="split-amt" type="number" id="samt-${id}" placeholder="₹0"
+             min="0" max="${payTotal}" oninput="updateSplitBalance()"/>
+      <button class="split-remove" onclick="removeSplitRow(${id})">×</button>`;
+    document.getElementById('splitRows').appendChild(div);
+    updateSplitBalance();
+  }
+
+  function removeSplitRow(id) {
+    splitRows = splitRows.filter(r => r !== id);
+    document.getElementById('sr-'+id)?.remove();
+    updateSplitBalance();
+  }
+
+  function updateSplitBalance() {
+    const totalPaid = splitRows.reduce((s, id) => {
+      return s + (parseFloat(document.getElementById('samt-'+id)?.value) || 0);
+    }, 0);
+    const remaining = payTotal - totalPaid;
+    const balEl = document.getElementById('splitBalance');
+    balEl.textContent = '₹'+Math.abs(remaining).toFixed(0);
+    if (remaining < 0) { balEl.className='bal-val bal-err'; balEl.textContent='Overpaid by ₹'+Math.abs(remaining).toFixed(0); }
+    else if (remaining === 0) { balEl.className='bal-val bal-ok'; balEl.textContent='✓ Exact amount'; }
+    else { balEl.className='bal-val bal-err'; }
+    updatePayConfirmBtn();
+  }
+
+  function updatePayConfirmBtn() {
+    const btn = document.getElementById('payConfirmBtn');
+    if (!selectedPayMode) { btn.disabled = true; return; }
+    if (selectedPayMode === 'split') {
+      const totalPaid = splitRows.reduce((s,id) => s+(parseFloat(document.getElementById('samt-'+id)?.value)||0),0);
+      btn.disabled = totalPaid < payTotal;
+    } else {
+      btn.disabled = false;
+    }
+  }
+
+  function getSplitData() {
+    return JSON.stringify(splitRows.map(id => ({
+      mode:   document.getElementById('smode-'+id)?.value || 'cash',
+      amount: parseFloat(document.getElementById('samt-'+id)?.value) || 0,
+    })));
+  }
+
+  async function confirmPayment() {
+    closePayment();
+    // Now actually place the order with payment info
+    await placeOrder(selectedPayMode, selectedPayMode==='split' ? getSplitData() : null);
+  }
+
+  // ── END PAYMENT SYSTEM ────────────────────────────────────────
+
+  function showError(msg){ const el=document.getElementById('errMsg'); el.textContent='❌ '+msg; el.classList.add('visible'); }
+  function hideError(){ document.getElementById('errMsg').classList.remove('visible'); }
+  function getPkgLabel(p){ return {digital:'Digital',print:'Print',frame:'Frame',combo:'Combo'}[p]||p; }
+  function fmt(ts){ if(!ts) return '—'; return new Date(ts).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:true}); }
+</script>
+</body>
+</html>

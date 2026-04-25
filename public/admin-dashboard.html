@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RideSnap – Admin Dashboard</title>
+    <script src="/auth.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0a0f1e;
+      --surf:    #111827;
+      --surf2:   #1a2235;
+      --border:  #1f2d45;
+      --border2: #2d3f5a;
+      --text:    #f0f4ff;
+      --sub:     #8899bb;
+      --muted:   #445577;
+      --yellow:  #f59e0b;
+      --yellow2: #fcd34d;
+      --green:   #10b981;
+      --blue:    #3b82f6;
+      --red:     #ef4444;
+      --purple:  #8b5cf6;
+    }
+    body { background: var(--bg); font-family: 'DM Mono', monospace; color: var(--text); min-height: 100vh; }
+
+    /* ── HEADER ── */
+    .header {
+      background: var(--surf); border-bottom: 1px solid var(--border);
+      padding: 0 28px; height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; }
+    .logo span { color: var(--yellow); }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .date-badge {
+      background: var(--surf2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 6px 14px; font-size: 11px; color: var(--sub);
+    }
+    .live-dot { width: 7px; height: 7px; background: var(--green); border-radius: 50%; animation: blink 2s infinite; display:inline-block; margin-right:6px; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .refresh-btn {
+      background: var(--surf2); border: 1px solid var(--border);
+      color: var(--sub); padding: 7px 14px; border-radius: 8px;
+      cursor: pointer; font-family: 'DM Mono', monospace; font-size: 11px;
+      transition: all 0.15s;
+    }
+    .refresh-btn:hover { border-color: var(--yellow); color: var(--yellow); }
+
+    /* ── MAIN ── */
+    .main { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
+
+    /* ── KPI CARDS ── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    @media(max-width:900px) { .kpi-grid { grid-template-columns: repeat(2,1fr); } }
+
+    .kpi-card {
+      background: var(--surf); border: 1px solid var(--border);
+      border-radius: 16px; padding: 20px 22px;
+      position: relative; overflow: hidden; transition: border 0.2s;
+    }
+    .kpi-card:hover { border-color: var(--border2); }
+    .kpi-card::before {
+      content: ""; position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      border-radius: 16px 16px 0 0;
+    }
+    .kpi-card.yellow::before { background: var(--yellow); }
+    .kpi-card.green::before  { background: var(--green); }
+    .kpi-card.blue::before   { background: var(--blue); }
+    .kpi-card.purple::before { background: var(--purple); }
+
+    .kpi-label { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+    .kpi-value { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 36px; line-height: 1; margin-bottom: 8px; }
+    .kpi-card.yellow .kpi-value { color: var(--yellow); }
+    .kpi-card.green  .kpi-value { color: var(--green); }
+    .kpi-card.blue   .kpi-value { color: var(--blue); }
+    .kpi-card.purple .kpi-value { color: var(--purple); }
+    .kpi-sub  { font-size: 11px; color: var(--sub); }
+    .kpi-icon { position: absolute; right: 18px; top: 18px; font-size: 28px; opacity: 0.15; }
+
+    /* ── CHART GRID ── */
+    .chart-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px; }
+    @media(max-width:900px) { .chart-grid { grid-template-columns: 1fr; } }
+
+    .chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    @media(max-width:900px) { .chart-grid-2 { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--surf); border: 1px solid var(--border);
+      border-radius: 16px; padding: 22px;
+    }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .card-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; }
+    .card-sub   { font-size: 10px; color: var(--muted); margin-top: 3px; letter-spacing: 1px; }
+    .chart-wrap { position: relative; height: 220px; }
+
+    /* ── RIDE STATS TABLE ── */
+    .ride-table { width: 100%; border-collapse: collapse; }
+    .ride-table th {
+      font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--muted); padding: 10px 12px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .ride-table td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 12px; }
+    .ride-table tr:last-child td { border-bottom: none; }
+    .ride-table tr:hover td { background: var(--surf2); }
+    .ride-name  { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; }
+    .ride-bar-wrap { background: var(--surf2); border-radius: 4px; height: 6px; width: 120px; overflow: hidden; }
+    .ride-bar   { height: 100%; background: var(--yellow); border-radius: 4px; transition: width 1s ease; }
+
+    /* ── RECENT ORDERS ── */
+    .order-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+    }
+    .order-item:last-child { border-bottom: none; }
+    .order-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .oi-digital { background: rgba(59,130,246,0.15); }
+    .oi-print   { background: rgba(245,158,11,0.15); }
+    .oi-frame   { background: rgba(139,92,246,0.15); }
+    .oi-combo   { background: rgba(16,185,129,0.15); }
+    .order-guest { font-size: 13px; font-weight: 700; }
+    .order-type  { font-size: 10px; color: var(--sub); margin-top: 2px; }
+    .order-price { margin-left: auto; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 15px; color: var(--yellow); flex-shrink: 0; }
+    .order-time  { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+
+    /* ── LOADING SKELETON ── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surf2) 25%, var(--border) 50%, var(--surf2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* ── EMPTY ── */
+    .empty-msg { text-align: center; padding: 40px; color: var(--muted); font-size: 12px; }
+
+    /* ── ANIMATE IN ── */
+    .fade-in { animation: fadeUp 0.4s ease both; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">📊 RideSnap <span>Admin</span></div>
+  <div class="header-right">
+    <div class="date-badge"><span class="live-dot"></span><span id="todayDate">—</span></div>
+    <div style="font-size:11px;color:#666;font-family:'Space Mono',monospace">👤 <span id="adminUserName">Admin</span></div>
+    <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+    <button class="refresh-btn" onclick="rsLogout()"
+      style="border-color:#7f1d1d;color:#f87171;"
+      onmouseover="this.style.borderColor='#f87171'"
+      onmouseout="this.style.borderColor='#7f1d1d'">
+      ⏻ Logout
+    </button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card yellow fade-in" style="animation-delay:0s">
+      <div class="kpi-icon">💰</div>
+      <div class="kpi-label">Today's Revenue</div>
+      <div class="kpi-value" id="kRevenue">—</div>
+      <div class="kpi-sub">Total collected today</div>
+    </div>
+    <div class="kpi-card green fade-in" style="animation-delay:0.05s">
+      <div class="kpi-icon">👥</div>
+      <div class="kpi-label">Guests Today</div>
+      <div class="kpi-value" id="kGuests">—</div>
+      <div class="kpi-sub">Wristbands scanned</div>
+    </div>
+    <div class="kpi-card blue fade-in" style="animation-delay:0.1s">
+      <div class="kpi-icon">📸</div>
+      <div class="kpi-label">Photos Taken</div>
+      <div class="kpi-value" id="kPhotos">—</div>
+      <div class="kpi-sub">Uploaded today</div>
+    </div>
+    <div class="kpi-card purple fade-in" style="animation-delay:0.15s">
+      <div class="kpi-icon">🛒</div>
+      <div class="kpi-label">Orders Placed</div>
+      <div class="kpi-value" id="kOrders">—</div>
+      <div class="kpi-sub">Digital + Print</div>
+    </div>
+  </div>
+
+  <!-- Revenue chart + Package breakdown -->
+  <div class="chart-grid">
+    <div class="card fade-in" style="animation-delay:0.2s">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Revenue by Hour</div>
+          <div class="card-sub">TODAY'S EARNINGS TIMELINE</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="revenueChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card fade-in" style="animation-delay:0.25s">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Package Split</div>
+          <div class="card-sub">ORDERS BY TYPE</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="packageChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ride stats + Recent orders -->
+  <div class="chart-grid">
+    <div class="card fade-in" style="animation-delay:0.3s">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Revenue by Ride</div>
+          <div class="card-sub">WHICH RIDES EARN THE MOST</div>
+        </div>
+      </div>
+      <table class="ride-table" id="rideTable">
+        <thead>
+          <tr>
+            <th>Ride</th>
+            <th>Photos</th>
+            <th>Orders</th>
+            <th>Revenue</th>
+            <th>Performance</th>
+          </tr>
+        </thead>
+        <tbody id="rideBody">
+          <tr><td colspan="5"><div class="empty-msg">Loading...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card fade-in" style="animation-delay:0.35s">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Recent Orders</div>
+          <div class="card-sub">LATEST PURCHASES</div>
+        </div>
+      </div>
+      <div id="recentOrders">
+        <div class="empty-msg">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Print queue summary -->
+  <div class="chart-grid-2">
+    <div class="card fade-in" style="animation-delay:0.4s">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Print Queue Status</div>
+          <div class="card-sub">CURRENT PRINT ORDERS</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="printChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card fade-in" style="animation-delay:0.45s">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Quick Stats</div>
+          <div class="card-sub">KEY METRICS</div>
+        </div>
+      </div>
+      <div id="quickStats"></div>
+    </div>
+
+    <!-- ── USER MANAGEMENT ── -->
+    <div class="card fade-in" style="animation-delay:0.55s">
+      <div class="card-header">
+        <div>
+          <div class="card-title">👥 User Management</div>
+          <div class="card-sub">ADD · EDIT · MANAGE STAFF ACCOUNTS</div>
+        </div>
+        <button onclick="openAddUser()" style="
+          background:#facc15;color:#0f172a;border:none;border-radius:8px;
+          padding:8px 16px;font-family:'Space Mono',monospace;font-size:11px;
+          font-weight:700;cursor:pointer;letter-spacing:1px;">
+          + ADD USER
+        </button>
+      </div>
+
+      <table style="width:100%;border-collapse:collapse" id="usersTable">
+        <thead>
+          <tr>
+            <th style="font-size:9px;letter-spacing:2px;color:#475569;padding:10px 12px;text-align:left;background:#0d1829;text-transform:uppercase">Name</th>
+            <th style="font-size:9px;letter-spacing:2px;color:#475569;padding:10px 12px;text-align:left;background:#0d1829;text-transform:uppercase">Username</th>
+            <th style="font-size:9px;letter-spacing:2px;color:#475569;padding:10px 12px;text-align:left;background:#0d1829;text-transform:uppercase">Role</th>
+            <th style="font-size:9px;letter-spacing:2px;color:#475569;padding:10px 12px;text-align:left;background:#0d1829;text-transform:uppercase">Status</th>
+            <th style="font-size:9px;letter-spacing:2px;color:#475569;padding:10px 12px;text-align:left;background:#0d1829;text-transform:uppercase">Last Login</th>
+            <th style="font-size:9px;letter-spacing:2px;color:#475569;padding:10px 12px;text-align:left;background:#0d1829;text-transform:uppercase">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="usersTableBody">
+          <tr><td colspan="6" style="padding:20px;text-align:center;color:#475569">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── RIDES MANAGER ── -->
+    <div class="card fade-in" style="animation-delay:0.5s">
+      <div class="card-header">
+        <div>
+          <div class="card-title">🎢 Rides Manager</div>
+          <div class="card-sub">ADD · EDIT · DELETE RIDES</div>
+        </div>
+        <button onclick="openAddRide()" style="
+          background:#facc15;color:#0f172a;border:none;border-radius:8px;
+          padding:8px 16px;font-family:'Space Mono',monospace;font-size:11px;
+          font-weight:700;cursor:pointer;letter-spacing:1px;">
+          + ADD RIDE
+        </button>
+      </div>
+
+      <table style="width:100%;border-collapse:collapse" id="ridesManagerTable">
+        <thead>
+          <tr>
+            <th style="font-size:9px;letter-spacing:2px;color:#475569;padding:10px 12px;text-align:left;background:#0d1829;text-transform:uppercase">ID</th>
+            <th style="font-size:9px;letter-spacing:2px;color:#475569;padding:10px 12px;text-align:left;background:#0d1829;text-transform:uppercase">Emoji</th>
+            <th style="font-size:9px;letter-spacing:2px;color:#475569;padding:10px 12px;text-align:left;background:#0d1829;text-transform:uppercase">Ride Name</th>
+            <th style="font-size:9px;letter-spacing:2px;color:#475569;padding:10px 12px;text-align:left;background:#0d1829;text-transform:uppercase">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="ridesManagerBody">
+          <tr><td colspan="4" style="padding:20px;text-align:center;color:#475569">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ── USER MODAL ── -->
+<div id="userModal" style="display:flex;visibility:hidden;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:100;align-items:center;justify-content:center;">
+  <div style="background:#0d1829;border:1px solid #1e293b;border-radius:16px;padding:28px;width:90%;max-width:420px;">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:#f1f5f9;margin-bottom:20px;" id="userModalTitle">Add User</div>
+
+    <div style="margin-bottom:14px">
+      <label style="font-size:10px;letter-spacing:2px;color:#475569;display:block;margin-bottom:6px">FULL NAME</label>
+      <input id="uNameInput" placeholder="e.g. Ravi Kumar" style="width:100%;padding:10px 14px;background:#0a0f1e;border:1px solid #1e293b;border-radius:8px;color:#f1f5f9;font-family:'Space Mono',monospace;font-size:13px;outline:none"/>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:10px;letter-spacing:2px;color:#475569;display:block;margin-bottom:6px">USERNAME</label>
+      <input id="uUsernameInput" placeholder="e.g. ravi01" style="width:100%;padding:10px 14px;background:#0a0f1e;border:1px solid #1e293b;border-radius:8px;color:#f1f5f9;font-family:'Space Mono',monospace;font-size:13px;outline:none"/>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:10px;letter-spacing:2px;color:#475569;display:block;margin-bottom:6px">PASSWORD</label>
+      <input id="uPasswordInput" type="text" placeholder="Set password" style="width:100%;padding:10px 14px;background:#0a0f1e;border:1px solid #1e293b;border-radius:8px;color:#f1f5f9;font-family:'Space Mono',monospace;font-size:13px;outline:none"/>
+    </div>
+    <div style="margin-bottom:20px">
+      <label style="font-size:10px;letter-spacing:2px;color:#475569;display:block;margin-bottom:6px">ROLE</label>
+      <select id="uRoleInput" style="width:100%;padding:10px 14px;background:#0a0f1e;border:1px solid #1e293b;border-radius:8px;color:#f1f5f9;font-family:'Space Mono',monospace;font-size:13px;outline:none">
+        <option value="photographer">📷 Photographer</option>
+        <option value="counter">🖥️ Counter Staff</option>
+        <option value="print">🖨️ Print Staff</option>
+        <option value="admin">👑 Admin</option>
+      </select>
+    </div>
+
+    <div id="userModalError" style="color:#f87171;font-size:11px;margin-bottom:12px;display:none"></div>
+
+    <div style="display:flex;gap:10px">
+      <button onclick="saveUser()" style="flex:1;padding:12px;background:#facc15;color:#0f172a;border:none;border-radius:10px;font-family:'Space Mono',monospace;font-size:12px;font-weight:700;cursor:pointer">SAVE USER</button>
+      <button onclick="closeUserModal()" style="padding:12px 20px;background:#0a0f1e;color:#64748b;border:1px solid #1e293b;border-radius:10px;font-family:'Space Mono',monospace;font-size:12px;cursor:pointer">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── RIDE MODAL ── -->
+<div id="rideModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:100;align-items:center;justify-content:center;">
+  <div style="background:#0d1829;border:1px solid #1e293b;border-radius:16px;padding:28px;width:90%;max-width:400px;">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:#f1f5f9;margin-bottom:20px;" id="rideModalTitle">Add Ride</div>
+
+    <div style="margin-bottom:14px">
+      <label style="font-size:10px;letter-spacing:2px;color:#475569;display:block;margin-bottom:6px">RIDE ID (e.g. R06)</label>
+      <input id="rideIdInput" placeholder="R06" maxlength="5" style="
+        width:100%;padding:10px 14px;background:#0a0f1e;border:1px solid #1e293b;
+        border-radius:8px;color:#f1f5f9;font-family:'Space Mono',monospace;font-size:13px;outline:none"/>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label style="font-size:10px;letter-spacing:2px;color:#475569;display:block;margin-bottom:6px">EMOJI</label>
+      <input id="rideEmojiInput" placeholder="🎢" maxlength="4" style="
+        width:100%;padding:10px 14px;background:#0a0f1e;border:1px solid #1e293b;
+        border-radius:8px;color:#f1f5f9;font-family:'Space Mono',monospace;font-size:20px;outline:none"/>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <label style="font-size:10px;letter-spacing:2px;color:#475569;display:block;margin-bottom:6px">RIDE NAME</label>
+      <input id="rideNameInput" placeholder="Thunder Coaster" style="
+        width:100%;padding:10px 14px;background:#0a0f1e;border:1px solid #1e293b;
+        border-radius:8px;color:#f1f5f9;font-family:'Space Mono',monospace;font-size:13px;outline:none"/>
+    </div>
+
+    <div id="rideModalError" style="color:#f87171;font-size:11px;margin-bottom:12px;display:none"></div>
+
+    <div style="display:flex;gap:10px">
+      <button onclick="saveRide()" style="
+        flex:1;padding:12px;background:#facc15;color:#0f172a;border:none;
+        border-radius:10px;font-family:'Space Mono',monospace;font-size:12px;
+        font-weight:700;cursor:pointer">SAVE RIDE</button>
+      <button onclick="closeRideModal()" style="
+        padding:12px 20px;background:#0a0f1e;color:#64748b;border:1px solid #1e293b;
+        border-radius:10px;font-family:'Space Mono',monospace;font-size:12px;cursor:pointer">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+  // Auth check
+  (async () => {
+    const user = await requireAuth(["admin"]);
+    if (user) {
+      const nameEl = document.getElementById('adminUserName');
+      if (nameEl) nameEl.textContent = user.name;
+    }
+  })();
+
+  const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:5000/api'
+    : window.location.origin + '/api';
+  let revenueChart, packageChart, printChart;
+
+  // ── INIT ──────────────────────────────────────────────────────
+  window.onload = async () => {
+    document.getElementById("todayDate").textContent =
+      new Date().toLocaleDateString("en-IN", { weekday:"short", day:"2-digit", month:"short", year:"numeric" });
+    // Wait for auth before loading data (ensures token is available)
+    await new Promise(r => setTimeout(r, 200));
+    loadAll();
+    setInterval(loadAll, 60000); // auto refresh every 60s
+  };
+
+  async function loadAll() {
+    await Promise.all([ loadStats(), loadRecentOrders(), loadPrintQueue(), loadRidesManager(), loadUsersTable() ]);
+  }
+
+  // ── LOAD STATS ────────────────────────────────────────────────
+  async function loadStats() {
+    try {
+      const res  = await fetch(`${API}/stats`);
+      const data = await res.json();
+      if (!data.success) throw new Error();
+
+      const s = data.stats;
+
+      // KPI cards
+      document.getElementById("kRevenue").textContent = "₹" + (s.revenue_today || 0).toLocaleString("en-IN");
+      document.getElementById("kGuests").textContent  = s.guests_today  || 0;
+      document.getElementById("kPhotos").textContent  = s.photos_today  || 0;
+      document.getElementById("kOrders").textContent  = s.orders_today  || 0;
+
+      // Package breakdown chart
+      renderPackageChart(s);
+
+      // Revenue by hour chart (simulated from available data)
+      renderRevenueChart(s);
+
+      // Ride stats table
+      renderRideTable(s);
+
+      // Quick stats
+      renderQuickStats(s);
+
+    } catch (err) {
+      console.error("Stats load failed:", err);
+      // Show demo data if backend not ready
+      renderDemoData();
+    }
+  }
+
+  // ── LOAD RECENT ORDERS ────────────────────────────────────────
+  async function loadRecentOrders() {
+    try {
+      const res  = await fetch(`${API}/stats`);
+      const data = await res.json();
+      if (!data.success) throw new Error();
+
+      const orders = data.stats.recent_orders || [];
+      const container = document.getElementById("recentOrders");
+
+      if (orders.length === 0) {
+        container.innerHTML = `<div class="empty-msg">No orders yet today</div>`;
+        return;
+      }
+
+      const icons = { digital:"📱", print:"🖨️", frame:"🖼️", combo:"⭐" };
+      const iconClass = { digital:"oi-digital", print:"oi-print", frame:"oi-frame", combo:"oi-combo" };
+
+      container.innerHTML = orders.slice(0,8).map(o => `
+        <div class="order-item">
+          <div class="order-icon ${iconClass[o.order_type] || 'oi-print'}">${icons[o.order_type] || "📸"}</div>
+          <div>
+            <div class="order-guest">${o.guest_name || "Guest"}</div>
+            <div class="order-type">${(o.order_type||"").toUpperCase()} · ${o.ride_name || ""}</div>
+          </div>
+          <div class="order-time">${formatTime(o.created_at)}</div>
+          <div class="order-price">₹${o.price || 0}</div>
+        </div>`).join("");
+
+    } catch { }
+  }
+
+  // ── LOAD PRINT QUEUE ──────────────────────────────────────────
+  async function loadPrintQueue() {
+    try {
+      const res  = await fetch(`${API}/print-queue`);
+      const data = await res.json();
+      if (!data.success) throw new Error();
+
+      const q = data.queue || [];
+      const queued    = q.filter(i => i.status === "queued").length;
+      const printing  = q.filter(i => i.status === "printing").length;
+      const done      = q.filter(i => i.status === "done").length;
+      const collected = q.filter(i => i.status === "collected").length;
+
+      renderPrintChart(queued, printing, done, collected);
+    } catch { }
+  }
+
+  // ── RENDER PACKAGE CHART ──────────────────────────────────────
+  function renderPackageChart(s) {
+    const ctx = document.getElementById("packageChart").getContext("2d");
+    if (packageChart) packageChart.destroy();
+
+    const digital = s.digital_orders || 0;
+    const print   = s.print_orders   || 0;
+    const frame   = s.frame_orders   || 0;
+    const combo   = s.combo_orders   || 0;
+
+    packageChart = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: ["Digital ₹150","Print ₹250","Frame ₹350","Combo ₹499"],
+        datasets: [{
+          data: [digital, print, frame, combo],
+          backgroundColor: ["#3b82f6","#f59e0b","#8b5cf6","#10b981"],
+          borderColor: "#111827",
+          borderWidth: 3,
+          hoverOffset: 8
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: "65%",
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: { color: "#8899bb", font: { family: "DM Mono", size: 10 }, padding: 12, boxWidth: 12 }
+          }
+        }
+      }
+    });
+  }
+
+  // ── RENDER REVENUE CHART ──────────────────────────────────────
+  function renderRevenueChart(s) {
+    const ctx = document.getElementById("revenueChart").getContext("2d");
+    if (revenueChart) revenueChart.destroy();
+
+    // Use hourly data from stats if available, else spread total across hours
+    const hours  = s.hourly_revenue || generateHourlySimulation(s.revenue_today || 0, s.orders_today || 0);
+    const labels = hours.map(h => h.hour + ":00");
+    const values = hours.map(h => h.revenue);
+
+    revenueChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          label: "Revenue (₹)",
+          data: values,
+          backgroundColor: "rgba(245,158,11,0.25)",
+          borderColor:     "#f59e0b",
+          borderWidth: 2,
+          borderRadius: 6,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: "#1f2d45" }, ticks: { color: "#445577", font: { family:"DM Mono", size:10 } } },
+          y: { grid: { color: "#1f2d45" }, ticks: { color: "#445577", font: { family:"DM Mono", size:10 }, callback: v => "₹"+v } }
+        }
+      }
+    });
+  }
+
+  // ── RENDER PRINT CHART ────────────────────────────────────────
+  function renderPrintChart(queued, printing, done, collected) {
+    const ctx = document.getElementById("printChart").getContext("2d");
+    if (printChart) printChart.destroy();
+
+    printChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: ["⏳ Queued","🖨️ Printing","✅ Ready","📦 Collected"],
+        datasets: [{
+          data: [queued, printing, done, collected],
+          backgroundColor: ["rgba(245,158,11,0.3)","rgba(59,130,246,0.3)","rgba(16,185,129,0.3)","rgba(100,116,139,0.3)"],
+          borderColor:     ["#f59e0b","#3b82f6","#10b981","#64748b"],
+          borderWidth: 2, borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: "#445577", font: { family:"DM Mono", size:10 } } },
+          y: { grid: { color: "#1f2d45" }, ticks: { color: "#445577", font: { family:"DM Mono", size:10 }, stepSize: 1 } }
+        }
+      }
+    });
+  }
+
+  // ── RENDER RIDE TABLE ─────────────────────────────────────────
+  function renderRideTable(s) {
+    const rides  = s.rides_stats || [];
+    const tbody  = document.getElementById("rideBody");
+    if (rides.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-msg">No ride data yet</div></td></tr>`;
+      return;
+    }
+    const maxRev = Math.max(...rides.map(r => r.revenue || 0), 1);
+    tbody.innerHTML = rides.map(r => {
+      const pct = Math.round(((r.revenue||0) / maxRev) * 100);
+      return `
+        <tr>
+          <td><div class="ride-name">${r.ride_name || r.ride_id}</div></td>
+          <td>${r.photos || 0}</td>
+          <td>${r.orders || 0}</td>
+          <td style="color:var(--yellow);font-weight:700">₹${(r.revenue||0).toLocaleString("en-IN")}</td>
+          <td>
+            <div class="ride-bar-wrap">
+              <div class="ride-bar" style="width:${pct}%"></div>
+            </div>
+          </td>
+        </tr>`;
+    }).join("");
+  }
+
+  // ── QUICK STATS ───────────────────────────────────────────────
+  function renderQuickStats(s) {
+    const avgOrder  = s.orders_today > 0 ? Math.round((s.revenue_today || 0) / s.orders_today) : 0;
+    const photoConv = s.photos_today > 0 ? Math.round((s.orders_today / s.photos_today) * 100) : 0;
+
+    document.getElementById("quickStats").innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        ${qRow("💰 Avg Order Value",    "₹" + avgOrder,             "var(--yellow)")}
+        ${qRow("📸 Photo → Sale Rate",  photoConv + "%",            "var(--green)")}
+        ${qRow("🖨️ Pending Prints",     s.pending_prints || 0,      "var(--blue)")}
+        ${qRow("📱 Digital Orders",     s.digital_orders || 0,      "var(--purple)")}
+        ${qRow("🖼️ Print Orders",       (s.print_orders||0) + (s.frame_orders||0), "var(--yellow)")}
+        ${qRow("⭐ Combo Orders",       s.combo_orders || 0,        "var(--green)")}
+      </div>`;
+  }
+  function qRow(label, val, color) {
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:12px;color:var(--sub)">${label}</span>
+        <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px;color:${color}">${val}</span>
+      </div>`;
+  }
+
+  // ── DEMO DATA (when backend offline) ─────────────────────────
+  function renderDemoData() {
+    document.getElementById("kRevenue").textContent = "₹4,350";
+    document.getElementById("kGuests").textContent  = "28";
+    document.getElementById("kPhotos").textContent  = "64";
+    document.getElementById("kOrders").textContent  = "19";
+
+    renderPackageChart({ digital_orders:8, print_orders:6, frame_orders:2, combo_orders:3 });
+    renderRevenueChart({ hourly_revenue: generateHourlySimulation(4350, 19) });
+    renderPrintChart(3, 1, 2, 8);
+    renderRideTable({
+      rides_stats: [
+        { ride_name:"Thunder Coaster", ride_id:"R01", photos:22, orders:9, revenue:1800 },
+        { ride_name:"Aqua Drop",       ride_id:"R02", photos:18, orders:6, revenue:1200 },
+        { ride_name:"Sky Twister",     ride_id:"R03", photos:14, orders:4, revenue:900 },
+        { ride_name:"Dark Tunnel",     ride_id:"R04", photos:10, orders:0, revenue:0 },
+      ]
+    });
+    renderQuickStats({ orders_today:19, revenue_today:4350, photos_today:64, digital_orders:8, print_orders:6, frame_orders:2, combo_orders:3, pending_prints:3 });
+    document.getElementById("recentOrders").innerHTML = [
+      { guest_name:"Udhayakumar", order_type:"digital", ride_name:"Thunder Coaster", price:150, created_at: new Date() },
+      { guest_name:"Priya R",     order_type:"combo",   ride_name:"Aqua Drop",       price:499, created_at: new Date(Date.now()-600000) },
+      { guest_name:"Karthik S",   order_type:"print",   ride_name:"Sky Twister",     price:250, created_at: new Date(Date.now()-1200000) },
+    ].map(o => `
+      <div class="order-item">
+        <div class="order-icon oi-${o.order_type}">${{digital:"📱",print:"🖨️",frame:"🖼️",combo:"⭐"}[o.order_type]}</div>
+        <div>
+          <div class="order-guest">${o.guest_name}</div>
+          <div class="order-type">${o.order_type.toUpperCase()} · ${o.ride_name}</div>
+        </div>
+        <div class="order-time">${formatTime(o.created_at)}</div>
+        <div class="order-price">₹${o.price}</div>
+      </div>`).join("");
+  }
+
+  // ── HELPERS ───────────────────────────────────────────────────
+  function generateHourlySimulation(totalRev, totalOrders) {
+    const now   = new Date().getHours();
+    const hours = [];
+    const peakHours = [10,11,12,14,15,16,17];
+    let distributed = 0;
+
+    for (let h = 9; h <= Math.min(now, 20); h++) {
+      const isPeak = peakHours.includes(h);
+      const weight = isPeak ? 0.15 : 0.05;
+      const rev    = h === now ? Math.max(0, totalRev - distributed) : Math.round(totalRev * weight * (0.7 + Math.random()*0.6));
+      distributed += rev;
+      hours.push({ hour: h, revenue: Math.max(0, rev) });
+    }
+    return hours;
+  }
+
+  function formatTime(ts) {
+    if (!ts) return "—";
+    return new Date(ts).toLocaleTimeString("en-IN", { hour:"2-digit", minute:"2-digit" });
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  RIDES MANAGER
+  // ══════════════════════════════════════════════════════════════
+
+  let editingRideId = null; // null = adding new, else = editing
+
+  async function loadRidesManager() {
+    try {
+      const res  = await fetch(`${API}/rides`);
+      const data = await res.json();
+      const tbody = document.getElementById("ridesManagerBody");
+      if (!data.success || !data.rides.length) {
+        tbody.innerHTML = `<tr><td colspan="4" style="padding:20px;text-align:center;color:#475569">No rides found</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = data.rides.map(r => `
+        <tr>
+          <td style="padding:12px;border-bottom:1px solid #1e293b;font-size:12px;color:#64748b">${r.id}</td>
+          <td style="padding:12px;border-bottom:1px solid #1e293b;font-size:20px">${r.emoji || "🎢"}</td>
+          <td style="padding:12px;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f1f5f9">${r.name}</td>
+          <td style="padding:12px;border-bottom:1px solid #1e293b">
+            <div style="display:flex;gap:8px">
+              <button onclick="openEditRide('${r.id}','${r.emoji||'🎢'}','${r.name.replace(/'/g,"\'")}')" style="
+                padding:6px 14px;background:#1e293b;color:#94a3b8;border:none;
+                border-radius:6px;font-size:11px;cursor:pointer;font-family:'Space Mono',monospace">
+                ✏️ Edit
+              </button>
+              <button onclick="deleteRide('${r.id}','${r.name.replace(/'/g,"\'")}')" style="
+                padding:6px 14px;background:#1a0a0a;color:#f87171;border:1px solid #7f1d1d;
+                border-radius:6px;font-size:11px;cursor:pointer;font-family:'Space Mono',monospace">
+                🗑 Delete
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    } catch(e) { console.error('Rides load error', e); }
+  }
+
+  function openAddRide() {
+    editingRideId = null;
+    document.getElementById("rideModalTitle").textContent = "➕ Add New Ride";
+    document.getElementById("rideIdInput").value          = "";
+    document.getElementById("rideIdInput").disabled       = false;
+    document.getElementById("rideEmojiInput").value       = "";
+    document.getElementById("rideNameInput").value        = "";
+    document.getElementById("rideModalError").style.display = "none";
+    document.getElementById("rideModal").style.display   = "flex";
+    setTimeout(() => document.getElementById("rideIdInput").focus(), 100);
+  }
+
+  function openEditRide(id, emoji, name) {
+    editingRideId = id;
+    document.getElementById("rideModalTitle").textContent = `✏️ Edit Ride — ${id}`;
+    document.getElementById("rideIdInput").value          = id;
+    document.getElementById("rideIdInput").disabled       = true; // can't change ID
+    document.getElementById("rideEmojiInput").value       = emoji;
+    document.getElementById("rideNameInput").value        = name;
+    document.getElementById("rideModalError").style.display = "none";
+    document.getElementById("rideModal").style.display   = "flex";
+    setTimeout(() => document.getElementById("rideNameInput").focus(), 100);
+  }
+
+  function closeRideModal() {
+    document.getElementById("rideModal").style.display = "none";
+    editingRideId = null;
+  }
+
+  async function saveRide() {
+    const id    = document.getElementById("rideIdInput").value.trim().toUpperCase();
+    const emoji = document.getElementById("rideEmojiInput").value.trim() || "🎢";
+    const name  = document.getElementById("rideNameInput").value.trim();
+    const errEl = document.getElementById("rideModalError");
+
+    if (!id)   { errEl.textContent = "Ride ID is required (e.g. R06)"; errEl.style.display="block"; return; }
+    if (!name) { errEl.textContent = "Ride name is required"; errEl.style.display="block"; return; }
+    errEl.style.display = "none";
+
+    try {
+      const isEdit  = editingRideId !== null;
+      const url     = isEdit ? `${API}/rides/${id}` : `${API}/rides`;
+      const method  = isEdit ? "PATCH" : "POST";
+
+      const res  = await fetch(url, {
+        method, headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, name, emoji }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      closeRideModal();
+      await loadRidesManager();
+
+    } catch(e) {
+      errEl.textContent = "Error: " + e.message;
+      errEl.style.display = "block";
+    }
+  }
+
+  async function deleteRide(id, name) {
+    if (!confirm(`Delete ride "${name}" (${id})?
+
+This won't delete existing photos — only removes it from the rides list.`)) return;
+    try {
+      const res  = await fetch(`${API}/rides/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      await loadRidesManager();
+    } catch(e) {
+      alert("Delete failed: " + e.message);
+    }
+  }
+
+  // Close modal on background click
+  document.getElementById("rideModal").addEventListener("click", function(e) {
+    if (e.target === this) closeRideModal();
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  //  USER MANAGEMENT
+  // ══════════════════════════════════════════════════════════════
+
+  const ROLE_LABELS = { admin:'👑 Admin', photographer:'📷 Photographer', counter:'🖥️ Counter', print:'🖨️ Print' };
+  const ROLE_COLORS = { admin:'#fbbf24', photographer:'#60a5fa', counter:'#34d399', print:'#a78bfa' };
+  let editingUserId = null;
+
+  async function loadUsersTable() {
+    const token = rsGetToken();
+    const tbody = document.getElementById('usersTableBody');
+    if (!token) {
+      tbody.innerHTML = `<tr><td colspan="6" style="padding:20px;text-align:center;color:#f87171">Not logged in</td></tr>`;
+      return;
+    }
+    try {
+      const res  = await fetch(`${API}/users`, { headers: { 'x-auth-token': token } });
+      const data = await res.json();
+      if (!data.success) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding:20px;text-align:center;color:#f87171">${data.error}</td></tr>`;
+        return;
+      }
+      if (!data.users.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding:20px;text-align:center;color:#475569">No users found</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = data.users.map(u => `
+        <tr>
+          <td style="padding:12px;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f1f5f9">${u.name}</td>
+          <td style="padding:12px;border-bottom:1px solid #1e293b;font-size:12px;color:#94a3b8;font-family:'Space Mono',monospace">${u.username}</td>
+          <td style="padding:12px;border-bottom:1px solid #1e293b">
+            <span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;background:${ROLE_COLORS[u.role]}22;color:${ROLE_COLORS[u.role]}">
+              ${ROLE_LABELS[u.role] || u.role}
+            </span>
+          </td>
+          <td style="padding:12px;border-bottom:1px solid #1e293b">
+            <span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;${u.active ? 'background:#4ade8022;color:#4ade80' : 'background:#f8717122;color:#f87171'}">
+              ${u.active ? '● Active' : '○ Inactive'}
+            </span>
+          </td>
+          <td style="padding:12px;border-bottom:1px solid #1e293b;font-size:11px;color:#475569">
+            ${u.last_login ? new Date(u.last_login).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : 'Never'}
+          </td>
+          <td style="padding:12px;border-bottom:1px solid #1e293b">
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button onclick="openEditUser('${u.id}','${u.name.replace(/'/g,"\\'")}','${u.username}','${u.role}')"
+                style="padding:5px 12px;background:#1e293b;color:#94a3b8;border:none;border-radius:6px;font-size:11px;cursor:pointer">
+                ✏️ Edit
+              </button>
+              <button onclick="toggleUserActive('${u.id}',${u.active})"
+                style="padding:5px 12px;background:${u.active?'#1a0a0a':'#0a1a0a'};color:${u.active?'#f87171':'#4ade80'};border:1px solid ${u.active?'#7f1d1d':'#14532d'};border-radius:6px;font-size:11px;cursor:pointer">
+                ${u.active ? '🔴 Deactivate' : '🟢 Activate'}
+              </button>
+            </div>
+          </td>
+        </tr>`).join('');
+    } catch(e) {
+      tbody.innerHTML = `<tr><td colspan="6" style="padding:20px;text-align:center;color:#f87171">Error: ${e.message}</td></tr>`;
+    }
+  }
+
+  function openAddUser() {
+    editingUserId = null;
+    document.getElementById('userModalTitle').textContent  = '➕ Add New Staff';
+    document.getElementById('uNameInput').value            = '';
+    document.getElementById('uUsernameInput').value        = '';
+    document.getElementById('uUsernameInput').disabled     = false;
+    document.getElementById('uPasswordInput').value        = '';
+    document.getElementById('uRoleInput').value            = 'photographer';
+    document.getElementById('userModalError').style.display = 'none';
+    document.getElementById('userModal').style.visibility  = 'visible';
+    setTimeout(() => document.getElementById('uNameInput').focus(), 100);
+  }
+
+  function openEditUser(id, name, username, role) {
+    editingUserId = id;
+    document.getElementById('userModalTitle').textContent  = `✏️ Edit — ${name}`;
+    document.getElementById('uNameInput').value            = name;
+    document.getElementById('uUsernameInput').value        = username;
+    document.getElementById('uUsernameInput').disabled     = true;
+    document.getElementById('uPasswordInput').value        = '';
+    document.getElementById('uRoleInput').value            = role;
+    document.getElementById('userModalError').style.display = 'none';
+    document.getElementById('userModal').style.visibility  = 'visible';
+    setTimeout(() => document.getElementById('uNameInput').focus(), 100);
+  }
+
+  function closeUserModal() {
+    document.getElementById('userModal').style.visibility = 'hidden';
+    editingUserId = null;
+  }
+
+  async function saveUser() {
+    const name     = document.getElementById('uNameInput').value.trim();
+    const username = document.getElementById('uUsernameInput').value.trim();
+    const password = document.getElementById('uPasswordInput').value.trim();
+    const role     = document.getElementById('uRoleInput').value;
+    const errEl    = document.getElementById('userModalError');
+    const token    = rsGetToken();
+
+    if (!name)                         { errEl.textContent = 'Name is required';     errEl.style.display = 'block'; return; }
+    if (!editingUserId && !username)   { errEl.textContent = 'Username is required'; errEl.style.display = 'block'; return; }
+    if (!editingUserId && !password)   { errEl.textContent = 'Password is required'; errEl.style.display = 'block'; return; }
+    errEl.style.display = 'none';
+
+    try {
+      const isEdit = !!editingUserId;
+      const url    = isEdit ? `${API}/users/${editingUserId}` : `${API}/users`;
+      const method = isEdit ? 'PATCH' : 'POST';
+      const body   = isEdit
+        ? { name, role, ...(password ? { password } : {}) }
+        : { name, username, password, role };
+
+      const res  = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body:    JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      closeUserModal();
+      await loadUsersTable();
+    } catch(e) {
+      errEl.textContent    = 'Error: ' + e.message;
+      errEl.style.display  = 'block';
+    }
+  }
+
+  async function toggleUserActive(id, currentActive) {
+    const token     = rsGetToken();
+    const newActive = currentActive ? 0 : 1;
+    if (!confirm(`${newActive ? 'Activate' : 'Deactivate'} this user?`)) return;
+    try {
+      const res  = await fetch(`${API}/users/${id}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body:    JSON.stringify({ active: newActive }),
+      });
+      const data = await res.json();
+      if (data.success) await loadUsersTable();
+    } catch(e) { alert('Failed: ' + e.message); }
+  }
+
+  document.getElementById('userModal').addEventListener('click', function(e) {
+    if (e.target === this) closeUserModal();
+  });
+
+</script>
+</body>
+</html>

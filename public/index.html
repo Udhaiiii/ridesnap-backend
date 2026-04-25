@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RideSnap – Staff Portal</title>
+  <script src="/auth.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d0f17;
+      --surf:    #141824;
+      --surf2:   #1c2030;
+      --border:  #272d3f;
+      --border2: #313754;
+      --text:    #f0f2f8;
+      --sub:     #7c8599;
+      --muted:   #353d52;
+      --amber:   #fbbf24;
+      --amber2:  #fcd34d;
+      --green:   #34d399;
+      --blue:    #60a5fa;
+      --rose:    #fb7185;
+      --violet:  #a78bfa;
+      --teal:    #2dd4bf;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      background: var(--bg);
+      font-family: 'DM Sans', sans-serif;
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 128px;
+      pointer-events: none;
+      opacity: .6;
+    }
+
+    /* ── AMBIENT GLOWS ── */
+    .glow-1 {
+      position: fixed; top: -20vh; left: -10vw;
+      width: 70vw; height: 70vh;
+      background: radial-gradient(ellipse, rgba(251,191,36,.13) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+    .glow-2 {
+      position: fixed; bottom: -20vh; right: -10vw;
+      width: 60vw; height: 60vh;
+      background: radial-gradient(ellipse, rgba(96,165,250,.10) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px;
+      background: rgba(13,15,23,.92);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .topbar-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-family: 'Bebas Neue', cursive;
+      font-size: 22px; letter-spacing: 2px;
+      color: var(--text);
+    }
+    .logo-dot { color: var(--amber); }
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--amber);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .topbar-right { display: flex; align-items: center; gap: 16px; }
+    .server-status {
+      display: flex; align-items: center; gap: 7px;
+      background: var(--surf2); border: 1px solid var(--border2);
+      border-radius: 20px; padding: 6px 14px;
+      font-family: 'DM Mono', monospace; font-size: 11px; color: var(--sub);
+    }
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.6;transform:scale(.85)} }
+    .clock {
+      font-family: 'DM Mono', monospace; font-size: 13px;
+      color: var(--amber); letter-spacing: 1px;
+    }
+
+    /* ── MAIN WRAPPER ── */
+    .wrapper { position: relative; z-index: 1; padding-top: 56px; }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 52vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 60px 24px 40px;
+      position: relative;
+    }
+    .hero-eyebrow {
+      display: flex; align-items: center; gap: 10px;
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      letter-spacing: 4px; color: var(--amber);
+      text-transform: uppercase; margin-bottom: 24px;
+      opacity: 0; animation: fadeUp .6s .1s ease forwards;
+    }
+    .eyebrow-line { width: 32px; height: 1px; background: var(--amber); }
+    .hero-title {
+      font-family: 'Bebas Neue', cursive;
+      font-size: clamp(72px, 12vw, 160px);
+      line-height: .92;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
+      opacity: 0; animation: fadeUp .7s .2s ease forwards;
+    }
+    .hero-title .line-1 { display: block; color: var(--text); }
+    .hero-title .line-2 {
+      display: block; color: transparent;
+      -webkit-text-stroke: 2px var(--amber); text-shadow: 0 0 80px rgba(251,191,36,.3);
+    }
+    .hero-sub {
+      font-size: 15px; color: #9ba8c0; max-width: 420px;
+      line-height: 1.7; margin-bottom: 40px;
+      opacity: 0; animation: fadeUp .7s .3s ease forwards;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── STATS STRIP ── */
+    .stats-strip {
+      display: flex; gap: 0;
+      background: var(--surf);
+      border: 1px solid var(--border2);
+      border-radius: 16px;
+      box-shadow: 0 0 40px rgba(251,191,36,.06);
+      overflow: hidden;
+      max-width: 700px; width: 100%; margin: 0 auto 64px;
+      opacity: 0; animation: fadeUp .7s .4s ease forwards;
+    }
+    .stat-cell {
+      flex: 1; padding: 18px 20px;
+      border-right: 1px solid var(--border);
+      text-align: center;
+      transition: background .2s;
+    }
+    .stat-cell:last-child { border-right: none; }
+    .stat-cell:hover { background: var(--surf2); }
+    .stat-val {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 32px; line-height: 1;
+      color: var(--amber); margin-bottom: 4px;
+    }
+    .stat-lbl {
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--sub);
+    }
+
+    /* ── SECTION TITLE ── */
+    .section {
+      max-width: 1100px; margin: 0 auto; padding: 0 24px 80px;
+    }
+    .section-head {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 28px;
+    }
+    .section-head h2 {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 28px; letter-spacing: 2px; color: #4a5270;
+    }
+    .section-line { flex: 1; height: 1px; background: var(--border); }
+
+    /* ── ROLE CARDS GRID ── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 900px) { .cards-grid { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 560px) { .cards-grid { grid-template-columns: 1fr; } }
+
+    .role-card {
+      position: relative; overflow: hidden;
+      background: linear-gradient(160deg, var(--surf2) 0%, var(--surf) 100%);
+      border: 1px solid var(--border2);
+      border-radius: 20px; padding: 28px;
+      text-decoration: none; color: inherit;
+      display: flex; flex-direction: column;
+      transition: transform .2s, border-color .2s, box-shadow .2s;
+      opacity: 0; animation: fadeUp .6s ease forwards;
+    }
+    .role-card:nth-child(1) { animation-delay: .1s; }
+    .role-card:nth-child(2) { animation-delay: .15s; }
+    .role-card:nth-child(3) { animation-delay: .2s; }
+    .role-card:nth-child(4) { animation-delay: .25s; }
+    .role-card:nth-child(5) { animation-delay: .3s; }
+
+    .role-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    }
+
+    /* Card glow on hover via accent */
+    .role-card.c-amber:hover  { border-color: rgba(251,191,36,.6);  box-shadow: 0 20px 60px rgba(251,191,36,.18), 0 0 0 1px rgba(251,191,36,.1); }
+    .role-card.c-green:hover  { border-color: rgba(52,211,153,.6);  box-shadow: 0 20px 60px rgba(52,211,153,.18), 0 0 0 1px rgba(52,211,153,.1); }
+    .role-card.c-blue:hover   { border-color: rgba(96,165,250,.6);  box-shadow: 0 20px 60px rgba(96,165,250,.18), 0 0 0 1px rgba(96,165,250,.1); }
+    .role-card.c-violet:hover { border-color: rgba(167,139,250,.6); box-shadow: 0 20px 60px rgba(167,139,250,.18), 0 0 0 1px rgba(167,139,250,.1); }
+    .role-card.c-rose:hover   { border-color: rgba(251,113,133,.6); box-shadow: 0 20px 60px rgba(251,113,133,.18), 0 0 0 1px rgba(251,113,133,.1); }
+
+    /* Background shimmer */
+    .role-card::before {
+      content: '';
+      position: absolute; top: -50%; right: -50%;
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      opacity: 0; transition: opacity .3s;
+    }
+    .role-card.c-amber::before  { background: radial-gradient(circle, rgba(251,191,36,.15), transparent 60%); }
+    .role-card.c-green::before  { background: radial-gradient(circle, rgba(52,211,153,.15), transparent 60%); }
+    .role-card.c-blue::before   { background: radial-gradient(circle, rgba(96,165,250,.15), transparent 60%); }
+    .role-card.c-violet::before { background: radial-gradient(circle, rgba(167,139,250,.15), transparent 60%); }
+    .role-card.c-rose::before   { background: radial-gradient(circle, rgba(251,113,133,.15), transparent 60%); }
+    .role-card:hover::before { opacity: 1; }
+
+    .card-icon-wrap {
+      width: 52px; height: 52px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; margin-bottom: 20px; flex-shrink: 0;
+    }
+    .c-amber .card-icon-wrap  { background: rgba(251,191,36,.18); box-shadow: 0 0 20px rgba(251,191,36,.15); }
+    .c-green .card-icon-wrap  { background: rgba(52,211,153,.18); box-shadow: 0 0 20px rgba(52,211,153,.15); }
+    .c-blue  .card-icon-wrap  { background: rgba(96,165,250,.18); box-shadow: 0 0 20px rgba(96,165,250,.15); }
+    .c-violet .card-icon-wrap { background: rgba(167,139,250,.18); box-shadow: 0 0 20px rgba(167,139,250,.15); }
+    .c-rose  .card-icon-wrap  { background: rgba(251,113,133,.18); box-shadow: 0 0 20px rgba(251,113,133,.15); }
+
+    .card-role {
+      font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+      margin-bottom: 6px; font-weight: 600;
+    }
+    .c-amber  .card-role { color: var(--amber);  }
+    .c-green  .card-role { color: var(--green);  }
+    .c-blue   .card-role { color: var(--blue);   }
+    .c-violet .card-role { color: var(--violet); }
+    .c-rose   .card-role { color: var(--rose);   }
+
+    .card-title {
+      font-family: 'Bebas Neue', cursive;
+      font-size: 28px; letter-spacing: 1px;
+      margin-bottom: 10px; line-height: 1;
+      color: #e8eaf2;
+    }
+    .card-desc {
+      font-size: 13px; color: #8a96b0;
+      line-height: 1.65; flex: 1; margin-bottom: 24px;
+    }
+    .card-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      border-top: 1px solid var(--border); padding-top: 16px; margin-top: auto;
+    }
+    .card-tag {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px; letter-spacing: 1px; color: var(--sub);
+    }
+    .card-arrow {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; transition: all .2s;
+      border: 1px solid var(--border);
+      color: var(--sub);
+    }
+    .c-amber  .card-arrow { color: var(--amber);  border-color: rgba(245,158,11,.3); }
+    .c-green  .card-arrow { color: var(--green);  border-color: rgba(16,185,129,.3); }
+    .c-blue   .card-arrow { color: var(--blue);   border-color: rgba(59,130,246,.3); }
+    .c-violet .card-arrow { color: var(--violet); border-color: rgba(139,92,246,.3); }
+    .c-rose   .card-arrow { color: var(--rose);   border-color: rgba(244,63,94,.3); }
+    .role-card:hover .card-arrow { transform: translate(3px,-3px); }
+
+    /* ── FEATURED (wide) card ── */
+    .role-card.featured {
+      grid-column: span 2;
+      flex-direction: row; align-items: center; gap: 32px;
+    }
+    @media (max-width: 900px) { .role-card.featured { grid-column: span 1; flex-direction: column; } }
+    .featured-body { flex: 1; }
+    .featured .card-title { font-size: 38px; }
+    .featured-visual {
+      width: 140px; height: 140px; flex-shrink: 0;
+      border-radius: 20px; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 64px;
+    }
+    .c-amber .featured-visual { background: rgba(245,158,11,.1); }
+
+    /* ── BOTTOM BAR ── */
+    .bottom-bar {
+      border-top: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+      font-family: 'DM Mono', monospace; font-size: 11px; color: var(--sub);
+    }
+    .bottom-bar span { color: var(--amber); }
+  </style>
+</head>
+<body>
+
+<div class="glow-1"></div>
+<div class="glow-2"></div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <div class="logo-icon">📸</div>
+    RIDE<span class="logo-dot">SNAP</span>
+  </div>
+  <div class="topbar-right">
+    <div style="font-size:11px;color:#666;font-family:'DM Mono',monospace">👤 <span id="portalUserName">—</span></div>
+    <div class="clock" id="clock">--:--:-- --</div>
+    <button onclick="rsLogout()" style="background:#1a1a22;border:1px solid #7f1d1d;color:#f87171;padding:5px 14px;border-radius:8px;cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;" onmouseover="this.style.background='#2a1a1a'" onmouseout="this.style.background='#1a1a22'">⏻ Logout</button>
+    <div class="server-status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Checking...</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrapper">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-eyebrow">
+      <div class="eyebrow-line"></div>
+      Staff Portal
+      <div class="eyebrow-line"></div>
+    </div>
+    <h1 class="hero-title">
+      <span class="line-1">Welcome to</span>
+      <span class="line-2">RideSnap</span>
+    </h1>
+    <p class="hero-sub">Amusement Park Photo System · Select your role to get started</p>
+
+    <!-- Stats strip -->
+    <div class="stats-strip">
+      <div class="stat-cell">
+        <div class="stat-val" id="sGuests">—</div>
+        <div class="stat-lbl">Guests Today</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val" id="sPhotos">—</div>
+        <div class="stat-lbl">Photos</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val" id="sOrders">—</div>
+        <div class="stat-lbl">Orders</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val" id="sRevenue">—</div>
+        <div class="stat-lbl">Revenue</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val" id="sPrints">—</div>
+        <div class="stat-lbl">Pending Prints</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARDS -->
+  <div class="section">
+
+    <div class="section-head">
+      <h2>Choose Your Role</h2>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="cards-grid">
+
+      <!-- Photographer (featured wide) -->
+      <a class="role-card c-amber featured" data-card="card-photographer" href="/ridesnap.html">
+        <div class="featured-visual">📷</div>
+        <div class="featured-body">
+          <div class="card-role">Photographer</div>
+          <div class="card-title">Photographer App</div>
+          <div class="card-desc">
+            Upload ride photos directly from your phone.
+            Scan guest wristband QR and link photos instantly.
+            Supports multiple photos per guest per ride.
+          </div>
+          <div class="card-footer">
+            <div class="card-tag">ridesnap.html</div>
+            <div class="card-arrow">→</div>
+          </div>
+        </div>
+      </a>
+
+      <!-- Photo Desk -->
+      <a class="role-card c-green" data-card="card-photoDesk" href="/photo-desk.html">
+        <div class="card-icon-wrap">🖥️</div>
+        <div class="card-role">Counter Staff</div>
+        <div class="card-title">Photo Desk</div>
+        <div class="card-desc">
+          Scan guest wristband to view their photos.
+          Select package — digital, print, frame or combo.
+          Send via WhatsApp, Email or SMS instantly.
+        </div>
+        <div class="card-footer">
+          <div class="card-tag">photo-desk.html</div>
+          <div class="card-arrow">→</div>
+        </div>
+      </a>
+
+      <!-- Print Dashboard -->
+      <a class="role-card c-blue" data-card="card-printDash" href="/print-dashboard.html">
+        <div class="card-icon-wrap">🖨️</div>
+        <div class="card-role">Print Counter</div>
+        <div class="card-title">Print Dashboard</div>
+        <div class="card-desc">
+          View pending print orders queue.
+          Mark prints as done and notify guests
+          when their photos are ready to collect.
+        </div>
+        <div class="card-footer">
+          <div class="card-tag">print-dashboard.html</div>
+          <div class="card-arrow">→</div>
+        </div>
+      </a>
+
+      <!-- Wristband Printer -->
+      <a class="role-card c-rose" data-card="card-wristband" href="/bulk-qr-printer.html">
+        <div class="card-icon-wrap">🎟️</div>
+        <div class="card-role">Entry Gate</div>
+        <div class="card-title">Wristband Printer</div>
+        <div class="card-desc">
+          Generate and print QR wristbands for guests.
+          Auto-resets daily — fresh start every morning.
+          Supports custom prefix and batch labelling.
+        </div>
+        <div class="card-footer">
+          <div class="card-tag">bulk-qr-printer.html</div>
+          <div class="card-arrow">→</div>
+        </div>
+      </a>
+
+      <!-- Admin Dashboard -->
+      <a class="role-card c-violet" data-card="card-admin" href="/admin-dashboard.html">
+        <div class="card-icon-wrap">📊</div>
+        <div class="card-role">Management</div>
+        <div class="card-title">Admin Dashboard</div>
+        <div class="card-desc">
+          Live revenue, guest stats and ride analytics.
+          Manage ride names and view order history.
+          Full overview of today's park operations.
+        </div>
+        <div class="card-footer">
+          <div class="card-tag">admin-dashboard.html</div>
+          <div class="card-arrow">→</div>
+        </div>
+      </a>
+
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <div>RideSnap <span>Park Photo System</span> · All rights reserved</div>
+    <div id="bottomDate">—</div>
+  </div>
+
+</div><!-- /wrapper -->
+
+<script>
+  const API = (window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1')
+    ? 'http://localhost:5000/api' : window.location.origin+'/api';
+
+  // Auth check + role-based card visibility
+  (async () => {
+    const token = rsGetToken();
+    if (!token) { window.location.href = '/login.html'; return; }
+
+    const user = await requireAuth(['admin','photographer','counter','print']);
+    if (!user) return;
+
+    const role = user.role;
+
+    // Show user name in portal
+    const nameEl = document.getElementById('portalUserName');
+    if (nameEl) nameEl.textContent = user.name;
+
+    // Role-based card visibility
+    const roleCards = {
+      photographer: ['card-photographer'],
+      counter:      ['card-photoDesk'],
+      print:        ['card-printDash'],
+      admin:        ['card-photographer','card-photoDesk','card-printDash','card-wristband','card-admin'],
+    };
+    const visible = roleCards[role] || [];
+    document.querySelectorAll('.role-card[data-card]').forEach(card => {
+      const show = role === 'admin' || visible.includes(card.dataset.card);
+      card.style.display = show ? '' : 'none';
+    });
+
+    // Inject logout bar
+    injectUserBar('Staff Portal');
+  })();
+
+  // Clock
+  function tick() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+  }
+  tick(); setInterval(tick, 1000);
+
+  // Date footer
+  document.getElementById('bottomDate').textContent =
+    new Date().toLocaleDateString('en-IN',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+
+  // Stats + health check
+  async function loadStats() {
+    try {
+      const res  = await fetch(`${API}/stats`);
+      const data = await res.json();
+      if (data.success) {
+        const s = data.stats;
+        animateNum('sGuests',  s.guests_today  || 0);
+        animateNum('sPhotos',  s.photos_today  || 0);
+        animateNum('sOrders',  s.orders_today  || 0);
+        animateNum('sPrints',  s.pending_prints|| 0);
+        document.getElementById('sRevenue').textContent =
+          '₹'+(s.revenue_today||0).toLocaleString('en-IN');
+        document.getElementById('statusDot').style.background  = '#10b981';
+        document.getElementById('statusDot').style.boxShadow   = '0 0 8px #10b981';
+        document.getElementById('statusText').textContent = 'Server Online';
+      }
+    } catch(e) {
+      document.getElementById('statusDot').style.background = '#f43f5e';
+      document.getElementById('statusDot').style.boxShadow  = '0 0 8px #f43f5e';
+      document.getElementById('statusText').textContent = 'Server Offline';
+      ['sGuests','sPhotos','sOrders','sRevenue','sPrints'].forEach(id => {
+        document.getElementById(id).textContent = '—';
+      });
+    }
+  }
+
+  function animateNum(id, target) {
+    const el = document.getElementById(id);
+    let cur = 0;
+    const step = Math.max(1, Math.floor(target / 20));
+    const timer = setInterval(() => {
+      cur = Math.min(cur + step, target);
+      el.textContent = cur;
+      if (cur >= target) clearInterval(timer);
+    }, 40);
+  }
+
+  loadStats();
+  setInterval(loadStats, 30000);
+</script>
+</body>
+</html>

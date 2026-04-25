@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RideSnap – Print Desk</title>
+    <script src="/auth.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#f8f7f4;--surf:#ffffff;--border:#e5e2db;--text:#1a1a1a;--sub:#888;--muted:#bbb;--yellow:#f59e0b;--green:#16a34a;--blue:#2563eb;--orange:#ea580c}
+    body{background:var(--bg);font-family:'DM Mono',monospace;color:var(--text);min-height:100vh}
+    .header{background:#1a1a1a;color:#fff;padding:0 28px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+    .logo{font-family:'Syne',sans-serif;font-weight:800;font-size:17px}.logo span{color:var(--yellow)}
+    .header-right{display:flex;align-items:center;gap:12px}
+    .live-badge{display:flex;align-items:center;gap:6px;font-size:10px;color:#aaa;letter-spacing:1px}
+    .live-dot{width:7px;height:7px;background:#4ade80;border-radius:50%;animation:blink 2s infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+    .refresh-btn{background:#2a2a2a;border:1px solid #444;color:#aaa;padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;transition:all .15s}
+    .refresh-btn:hover{border-color:var(--yellow);color:var(--yellow)}
+    .status-bar{background:var(--surf);border-bottom:1px solid var(--border);padding:0 28px;display:flex}
+    .stat-tab{padding:14px 24px;display:flex;flex-direction:column;align-items:center;gap:2px;border-right:1px solid var(--border);cursor:pointer;transition:background .15s;min-width:110px}
+    .stat-tab:hover{background:#fafaf8}
+    .stat-tab.active{background:#fefce8;border-bottom:3px solid var(--yellow)}
+    .stat-icon{font-size:20px}
+    .stat-count{font-family:'Syne',sans-serif;font-weight:800;font-size:22px}
+    .stat-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--sub)}
+    .s-queued .stat-count{color:var(--orange)}.s-printing .stat-count{color:var(--blue)}
+    .s-done .stat-count{color:var(--green)}.s-collected .stat-count{color:#888}.s-all .stat-count{color:var(--text)}
+    .filter-bar{padding:14px 28px;background:var(--surf);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .filter-btn{padding:7px 16px;border-radius:20px;border:1px solid var(--border);background:var(--bg);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px}
+    .filter-btn:hover{border-color:#aaa}
+    .filter-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+    .badge{background:var(--yellow);color:#000;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700}
+    .filter-btn.active .badge{background:#fff;color:#000}
+    .search-wrap{margin-left:auto;position:relative}
+    .search-input{padding:7px 14px 7px 32px;border:1px solid var(--border);border-radius:20px;background:var(--bg);font-family:'DM Mono',monospace;font-size:11px;outline:none;width:200px;transition:border .15s}
+    .search-input:focus{border-color:#aaa}
+    .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted)}
+    .table-wrap{padding:20px 28px}
+    table{width:100%;border-collapse:collapse;background:var(--surf);border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+    th{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--sub);padding:12px 16px;text-align:left;background:#fafaf8;border-bottom:1px solid var(--border)}
+    td{padding:14px 16px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:#fafaf8}
+    .photo-thumb{width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:transform .15s}
+    .photo-thumb:hover{transform:scale(1.08)}
+    .no-photo{width:56px;height:56px;background:var(--bg);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+    .guest-name{font-family:'Syne',sans-serif;font-weight:700;font-size:13px}
+    .guest-wb{font-size:10px;color:var(--sub);margin-top:2px}
+    .type-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+    .tb-print{background:#fef3c7;color:#92400e}.tb-frame{background:#ede9fe;color:#5b21b6}.tb-combo{background:#dcfce7;color:#166534}
+    .status-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1px}
+    .sb-queued{background:#fff7ed;color:var(--orange);border:1px solid #fed7aa}
+    .sb-printing{background:#eff6ff;color:var(--blue);border:1px solid #bfdbfe}
+    .sb-done{background:#f0fdf4;color:var(--green);border:1px solid #bbf7d0}
+    .sb-collected{background:#f5f5f5;color:#666;border:1px solid #ddd}
+    .action-wrap{display:flex;gap:6px;flex-wrap:wrap}
+    .act-btn{padding:6px 14px;border-radius:8px;border:none;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;font-weight:700;transition:all .15s}
+    .act-print{background:#1a1a1a;color:#fff}.act-print:hover{background:#333}
+    .act-ready{background:#dcfce7;color:#166534;border:1px solid #bbf7d0}.act-ready:hover{background:#bbf7d0}
+    .act-collect{background:#f5f5f5;color:#555;border:1px solid #ddd}.act-collect:hover{background:#e5e5e5}
+    .act-view{background:var(--bg);color:var(--sub);border:1px solid var(--border)}.act-view:hover{border-color:#aaa;color:var(--text)}
+    .empty{text-align:center;padding:60px 20px}
+    .empty-icon{font-size:48px;margin-bottom:12px}
+    .empty-title{font-family:'Syne',sans-serif;font-weight:800;font-size:18px;margin-bottom:6px}
+    .empty-sub{font-size:12px;color:var(--sub)}
+    .modal-bg{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.85);align-items:center;justify-content:center}
+    .modal-bg.open{display:flex}
+    .modal-box{background:#fff;border-radius:16px;padding:20px;max-width:600px;width:92%}
+    .modal-img{width:100%;border-radius:10px;margin-bottom:14px;max-height:400px;object-fit:contain}
+    .modal-info{display:flex;justify-content:space-between;align-items:center}
+    .modal-guest{font-family:'Syne',sans-serif;font-weight:800;font-size:16px}
+    .modal-actions{display:flex;gap:8px}
+    .modal-print-btn{background:#1a1a1a;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-family:'DM Mono',monospace;font-size:13px;font-weight:700;cursor:pointer}
+    .modal-print-btn:hover{background:#333}
+    .modal-close-btn{background:var(--bg);color:var(--sub);border:1px solid var(--border);border-radius:10px;padding:10px 16px;cursor:pointer;font-family:'DM Mono',monospace;font-size:12px}
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">🖨️ RideSnap <span>Print Desk</span></div>
+  <div class="header-right">
+    <div class="live-badge"><div class="live-dot"></div><span id="lastRefresh">AUTO REFRESH 30s</span></div>
+    <div style="font-size:11px;color:#aaa;font-family:'DM Mono',monospace">👤 <span id="hdrUserName">—</span></div>
+    <button class="refresh-btn" onclick="loadQueue()">↻ Refresh</button>
+    <button class="refresh-btn" onclick="rsLogout()" style="border-color:#7f1d1d;color:#f87171" onmouseover="this.style.borderColor='#f87171'" onmouseout="this.style.borderColor='#7f1d1d'">⏻ Logout</button>
+  </div>
+</div>
+
+<!-- Status tabs -->
+<div class="status-bar">
+  <div class="stat-tab s-queued"    id="tab-queued"    onclick="setFilter('queued')">    <div class="stat-icon">⏳</div><div class="stat-count" id="cnt-queued">0</div>   <div class="stat-label">Pending</div></div>
+  <div class="stat-tab s-printing"  id="tab-printing"  onclick="setFilter('printing')">  <div class="stat-icon">🖨️</div><div class="stat-count" id="cnt-printing">0</div> <div class="stat-label">Printing</div></div>
+  <div class="stat-tab s-done"      id="tab-done"      onclick="setFilter('done')">      <div class="stat-icon">✅</div><div class="stat-count" id="cnt-done">0</div>     <div class="stat-label">Ready</div></div>
+  <div class="stat-tab s-collected" id="tab-collected" onclick="setFilter('collected')"> <div class="stat-icon">📦</div><div class="stat-count" id="cnt-collected">0</div><div class="stat-label">Collected</div></div>
+  <div class="stat-tab s-all active"id="tab-all"       onclick="setFilter('all')">       <div class="stat-icon">📋</div><div class="stat-count" id="cnt-all">0</div>      <div class="stat-label">Today Total</div></div>
+</div>
+
+<!-- Filter bar -->
+<div class="filter-bar">
+  <button class="filter-btn active" id="fb-all"       onclick="setFilter('all')">All <span class="badge" id="fb-cnt-all">0</span></button>
+  <button class="filter-btn"        id="fb-queued"    onclick="setFilter('queued')">⏳ Queued <span class="badge" id="fb-cnt-queued">0</span></button>
+  <button class="filter-btn"        id="fb-printing"  onclick="setFilter('printing')">🖨️ Printing <span class="badge" id="fb-cnt-printing">0</span></button>
+  <button class="filter-btn"        id="fb-done"      onclick="setFilter('done')">✅ Ready <span class="badge" id="fb-cnt-done">0</span></button>
+  <button class="filter-btn"        id="fb-collected" onclick="setFilter('collected')">📦 Collected <span class="badge" id="fb-cnt-collected">0</span></button>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input class="search-input" id="searchInput" placeholder="Search guest / WB ID..." oninput="renderTable()"/>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Photo</th><th>Guest</th><th>Type</th><th>Status</th><th>Order Time</th><th>Actions</th></tr></thead>
+    <tbody id="tableBody"><tr><td colspan="6"><div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Loading...</div></div></td></tr></tbody>
+  </table>
+</div>
+
+<!-- Photo modal -->
+<div class="modal-bg" id="photoModal">
+  <div class="modal-box">
+    <img id="modalImg" class="modal-img" src="" alt=""/>
+    <div class="modal-info">
+      <div>
+        <div class="modal-guest" id="modalGuest">—</div>
+        <div style="font-size:11px;color:#888;margin-top:2px" id="modalMeta">—</div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-print-btn" onclick="printPhoto()">🖨️ Print Now</button>
+        <button class="modal-close-btn" onclick="closeModal()">✕ Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+
+  // Auth check
+  (async () => {
+    const user = await requireAuth(["print", "admin"]);
+    if (user) injectUserBar('Print Dashboard');
+  })();
+
+  const API = (window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1')
+    ? 'http://localhost:5000/api' : window.location.origin+'/api';
+
+  let allOrders = [], currentFilter = 'all', currentModal = null;
+
+  async function loadQueue() {
+    try {
+      const res  = await fetch(`${API}/print-queue`);
+      const data = await res.json();
+      if (!data.success) throw new Error();
+
+      allOrders = data.queue || [];
+
+      const b = data.badges || {};
+      ['queued','printing','done','collected','all'].forEach(s => {
+        const v = b[s] || 0;
+        document.getElementById(`cnt-${s}`).textContent    = v;
+        document.getElementById(`fb-cnt-${s}`).textContent = v;
+      });
+
+      document.getElementById('lastRefresh').textContent =
+        'Updated ' + new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+
+      renderTable();
+    } catch(e) { console.error(e); }
+  }
+
+  function setFilter(f) {
+    currentFilter = f;
+    ['queued','printing','done','collected','all'].forEach(s => {
+      document.getElementById(`tab-${s}`).classList.toggle('active', s===f);
+      document.getElementById(`fb-${s}`).classList.toggle('active', s===f);
+    });
+    renderTable();
+  }
+
+  function renderTable() {
+    const search = document.getElementById('searchInput').value.toLowerCase().trim();
+    let rows = allOrders;
+
+    if (currentFilter !== 'all') rows = rows.filter(o => o.status === currentFilter);
+    if (search) rows = rows.filter(o =>
+      (o.guest_name||'').toLowerCase().includes(search) ||
+      (o.visit_id||'').toLowerCase().includes(search)
+    );
+
+    const tbody = document.getElementById('tableBody');
+
+    if (!rows.length) {
+      const msgs = {
+        all:       ['✅','All clear!','No orders today yet.'],
+        queued:    ['⏳','No pending orders','All caught up!'],
+        printing:  ['🖨️','Nothing printing','Queue is empty.'],
+        done:      ['✅','None ready for pickup','No prints waiting.'],
+        collected: ['📦','No collected orders yet',"Today's collected orders appear here."],
+      };
+      const [icon,title,sub] = msgs[currentFilter]||msgs.all;
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty">
+        <div class="empty-icon">${icon}</div>
+        <div class="empty-title">${title}</div>
+        <div class="empty-sub">${sub}</div>
+      </div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows.map(o => {
+      const typeClass = {print:'tb-print',frame:'tb-frame',combo:'tb-combo'}[o.order_type]||'tb-print';
+      const sb = {
+        queued:    `<span class="status-badge sb-queued">⏳ Queued</span>`,
+        printing:  `<span class="status-badge sb-printing">🖨️ Printing</span>`,
+        done:      `<span class="status-badge sb-done">✅ Ready</span>`,
+        collected: `<span class="status-badge sb-collected">📦 Collected</span>`,
+      }[o.status]||'';
+
+      let actions = '';
+      if (o.status==='queued'||o.status==='printing') {
+        actions = `
+          <button class="act-btn act-print"   onclick="openModal('${o.id}')">🖨️ Print</button>
+          <button class="act-btn act-ready"   onclick="updateStatus('${o.id}','done')">✅ Mark Ready</button>`;
+      } else if (o.status==='done') {
+        actions = `
+          <button class="act-btn act-view"    onclick="openModal('${o.id}')">👁 View</button>
+          <button class="act-btn act-collect" onclick="updateStatus('${o.id}','collected')">📦 Collected</button>`;
+      } else if (o.status==='collected') {
+        actions = `
+          <button class="act-btn act-view"    onclick="openModal('${o.id}')">👁 View</button>
+          <span style="font-size:10px;color:#aaa">✓ ${fmt(o.collected_at)}</span>`;
+      }
+
+      const thumb = o.s3_url
+        ? `<img class="photo-thumb" src="${o.s3_url}" onclick="openModal('${o.id}')">`
+        : `<div class="no-photo">📷</div>`;
+
+      return `<tr>
+        <td>${thumb}</td>
+        <td><div class="guest-name">${o.guest_name||'Guest'}</div><div class="guest-wb">${o.visit_id} · ${o.ride_name||''}</div></td>
+        <td><span class="type-badge ${typeClass}">${o.order_type}</span></td>
+        <td>${sb}</td>
+        <td style="color:#888">${fmt(o.queued_at)}</td>
+        <td><div class="action-wrap">${actions}</div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function updateStatus(id, status) {
+    try {
+      const res = await fetch(`${API}/print-queue/${id}/status`,{
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({status})
+      });
+      const data = await res.json();
+      if (data.success) await loadQueue();
+    } catch(e){ alert('Update failed'); }
+  }
+
+  function openModal(id) {
+    const o = allOrders.find(x=>x.id===id); if(!o) return;
+    currentModal = o;
+    document.getElementById('modalImg').src             = o.s3_url||'';
+    document.getElementById('modalGuest').textContent   = o.guest_name||'Guest';
+    document.getElementById('modalMeta').textContent    =
+      `${o.visit_id} · ${o.ride_name} · ${(o.order_type||'').toUpperCase()} · ₹${o.price}`;
+    document.getElementById('photoModal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('photoModal').classList.remove('open');
+    currentModal = null;
+  }
+
+  function printPhoto() {
+    if (!currentModal?.s3_url) return;
+    updateStatus(currentModal.id, 'done');
+    const win = window.open(currentModal.s3_url,'_blank');
+    if (win) win.onload = ()=>{ win.focus(); win.print(); };
+    closeModal();
+  }
+
+  document.getElementById('photoModal').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+
+  function fmt(ts) {
+    if (!ts) return '—';
+    return new Date(ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  const _n=rsGetName(); if(_n && document.getElementById('hdrUserName')) document.getElementById('hdrUserName').textContent=_n;
+  loadQueue();
+  setInterval(loadQueue, 30000);
+</script>
+</body>
+</html>
