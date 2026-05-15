@@ -6,8 +6,11 @@ require("dotenv").config();
 const DB_PATH = process.env.DB_PATH || "./ridesnap.db";
 const db = new Database(path.resolve(DB_PATH));
 
-db.pragma("journal_mode = WAL");
+db.pragma("journal_mode = WAL");      // Multiple concurrent readers
+db.pragma("busy_timeout = 5000");     // Wait 5s if DB locked — CRITICAL for concurrent uploads
 db.pragma("foreign_keys = ON");
+db.pragma("cache_size = -8000");      // 8MB cache — faster reads
+db.pragma("synchronous = NORMAL");    // Faster writes, still safe with WAL
 
 db.exec(`
 
@@ -167,7 +170,27 @@ const addColIfMissing = (table, col, definition) => {
 addColIfMissing('orders', 'payment_mode',   'TEXT DEFAULT NULL');
 addColIfMissing('orders', 'payment_splits', 'TEXT DEFAULT NULL');
 
+// ── Clean wrong park email from visits ──────────────────────────
+// Remove park email that was accidentally saved to guest records
+const parkEmail = process.env.PARK_EMAIL || '';
+if (parkEmail) {
+  const cleaned = db.prepare(
+    "UPDATE visits SET email = NULL WHERE email = ?"
+  ).run(parkEmail);
+  if (cleaned.changes > 0)
+    console.log(`🧹 Removed park email from ${cleaned.changes} visit records`);
+}
 // ── End migrations ─────────────────────────────────────────────────
+
+// ── Auto-cleanup expired sessions (runs on startup + every hour) ─
+function cleanExpiredSessions() {
+  try {
+    const deleted = db.prepare("DELETE FROM sessions WHERE expires_at < datetime('now')").run();
+    if (deleted.changes > 0) console.log(`🧹 Cleaned ${deleted.changes} expired sessions`);
+  } catch(e) {}
+}
+cleanExpiredSessions();
+setInterval(cleanExpiredSessions, 60 * 60 * 1000); // every hour
 
 console.log("✅ Database ready:", path.resolve(DB_PATH));
 module.exports = db;

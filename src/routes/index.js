@@ -5,7 +5,7 @@ const { v4: uuidv4 } = require("uuid");
 const db       = require("../db/database");
 const { uploadToS3, getPresignedUploadUrl, getPresignedReadUrl, buildS3Key } = require("../utils/s3");
 const { getImageMeta } = require("../utils/watermark"); // watermark upload removed
-const { sendPhotoLink, sendOrderConfirmation } = require("../utils/email");
+const { sendPhotoLink, sendReceiptWithPhoto, sendOrderConfirmation } = require("../utils/email");
 const { printWristbands, generateWristbandZPL, previewZPL } = require("../utils/printer");
 
 const router = express.Router();
@@ -367,37 +367,35 @@ router.post("/photos/upload", upload.single("photo"), async (req, res) => {
       });
     }
 
-    // Auto-create visit record if first time this WB is used
-    const existingVisit = db.prepare("SELECT * FROM visits WHERE id = ?").get(wbId);
-    if (!existingVisit) {
-      db.prepare(`INSERT OR IGNORE INTO visits (id, guest_name) VALUES (?, 'Guest')`)
-        .run(wbId);
-    }
-
-    // Mark wristband as active on first use
-    if (wb.status === "inactive") {
-      db.prepare(`UPDATE wristbands SET status='active', activated_at=datetime('now','localtime') WHERE id=?`)
-        .run(wbId);
-    }
-
-    const photoId = "PH-" + Math.random().toString(36).slice(2,8).toUpperCase();
+    const photoId    = "PH-" + Math.random().toString(36).slice(2,8).toUpperCase();
     const origBuffer = req.file.buffer;
 
+    // S3 upload FIRST (outside transaction — async operation)
     const meta    = await getImageMeta(origBuffer);
     const origKey = buildS3Key(ride_id, wbId, photoId, "original");
-
-    // Upload original only — no watermark needed
-    // Guest buys first, then we send original via email/WhatsApp
     const origUrl = await uploadToS3(origBuffer, origKey, "image/jpeg");
 
-    db.prepare(`
-      INSERT INTO photos (id, visit_id, ride_id, ride_name, s3_key, s3_url, watermark_url, file_size, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'uploaded')
-    `).run(photoId, wbId, ride_id || "R00", ride_name || "Unknown", origKey, origUrl, null, meta.size);
+    // DB writes — all in one transaction (atomic — all succeed or all fail)
+    const savePhoto = db.transaction(() => {
+      // 1. Create visit if first time WB is used
+      db.prepare("INSERT OR IGNORE INTO visits (id, guest_name) VALUES (?, 'Guest')").run(wbId);
 
-    const photo = db.prepare("SELECT * FROM photos WHERE id = ?").get(photoId);
+      // 2. Mark wristband active on first use
+      if (wb.status === "inactive") {
+        db.prepare("UPDATE wristbands SET status='active', activated_at=datetime('now','localtime') WHERE id=?").run(wbId);
+      }
+
+      // 3. Insert photo record
+      db.prepare(`
+        INSERT INTO photos (id, visit_id, ride_id, ride_name, s3_key, s3_url, watermark_url, file_size, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'uploaded')
+      `).run(photoId, wbId, ride_id || "R00", ride_name || "Unknown", origKey, origUrl, null, meta.size);
+
+      return db.prepare("SELECT * FROM photos WHERE id = ?").get(photoId);
+    });
+
+    const photo = savePhoto();
     console.log(`📸 Photo uploaded: ${photoId} → wristband ${wbId}`);
-
     res.json({ success: true, photo, message: `Photo linked to wristband ${wbId}` });
 
   } catch (err) {
@@ -466,18 +464,40 @@ router.post("/orders", async (req, res) => {
 
     db.prepare("UPDATE photos SET status = 'sold' WHERE id = ?").run(photo_id);
 
-    // Try email — but NEVER fail the order if email fails
-    // Staff can always resend from the success screen buttons
-    if (order_type === "digital" || order_type === "combo") {
-      const guestEmail = email || visit?.email;
-      if (guestEmail) {
-        try {
-          const downloadUrl = await getPresignedReadUrl(photo.s3_key, 7 * 24 * 3600);
-          await sendPhotoLink({ to: guestEmail, guestName: visit?.guest_name, photoUrl: downloadUrl, orderId, rideName: photo.ride_name, parkName: process.env.PARK_NAME || "RideSnap Park" });
-          db.prepare("UPDATE orders SET email_sent = 1 WHERE id = ?").run(orderId);
-        } catch (emailErr) {
-          console.warn("Auto-email failed (order still placed):", emailErr.message);
-        }
+    // Send receipt + photo link to guest email at time of purchase
+    // Only use email from request body — NEVER use park email or visit.email fallback
+    const guestEmail = email && email.includes('@') && !email.toLowerCase().includes('wonderla.com')
+      ? email : null;
+
+    if (guestEmail) {
+      try {
+        const isDigital = order_type === "digital" || order_type === "combo";
+        const downloadUrl = isDigital ? await getPresignedReadUrl(photo.s3_key, 7 * 24 * 3600) : null;
+
+        // Generate receipt number
+        const rcpCount = db.prepare(`SELECT COUNT(*) as cnt FROM orders WHERE date(created_at)=date('now','localtime') AND id<=?`).get(orderId)?.cnt || 1;
+        const receiptNo = `RCP-${new Date().getFullYear()}-${String(rcpCount).padStart(4,"0")}`;
+        const dateStr   = new Date().toLocaleString("en-IN", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:true });
+
+        // Send combined receipt + photo link email
+        await sendReceiptWithPhoto({
+          to:          guestEmail,
+          guestName:   visit?.guest_name || "Guest",
+          photoUrl:    downloadUrl,
+          orderId,
+          rideName:    photo.ride_name,
+          orderType:   order_type,
+          price:       PRICES[order_type],
+          paymentMode: req.body.payment_mode || "cash",
+          wristbandId: visit_id,
+          receiptNo,
+          date:        dateStr,
+        });
+
+        db.prepare("UPDATE orders SET email_sent = 1 WHERE id = ?").run(orderId);
+        console.log(`📧 Receipt + photo sent to ${guestEmail} for order ${orderId}`);
+      } catch (emailErr) {
+        console.warn("Auto-email failed (order still placed):", emailErr.message);
       }
     }
 
@@ -530,15 +550,23 @@ router.post("/orders/bulk", async (req, res) => {
       db.prepare("UPDATE photos SET status = 'sold' WHERE id = ?").run(photo_id);
 
       // Email for digital
-      if (order_type === "digital" || order_type === "combo") {
-        const guestEmail = email || visit?.email;
-        if (guestEmail) {
-          try {
-            const downloadUrl = await getPresignedReadUrl(photo.s3_key, 7 * 24 * 3600);
-            await sendPhotoLink({ to: guestEmail, guestName: visit?.guest_name, photoUrl: downloadUrl, orderId, rideName: photo.ride_name, parkName: process.env.PARK_NAME || "RideSnap Park" });
-            db.prepare("UPDATE orders SET email_sent = 1 WHERE id = ?").run(orderId);
-          } catch(e) { console.warn("Auto-email failed:", e.message); }
-        }
+      const guestEmailBulk = email && email.includes('@') && !email.toLowerCase().includes('wonderla.com') ? email : null;
+      if (guestEmailBulk) {
+        try {
+          const isDigital = order_type === "digital" || order_type === "combo";
+          const downloadUrl = isDigital ? await getPresignedReadUrl(photo.s3_key, 7 * 24 * 3600) : null;
+          const rcpCount2 = db.prepare(`SELECT COUNT(*) as cnt FROM orders WHERE date(created_at)=date('now','localtime') AND id<=?`).get(orderId)?.cnt || 1;
+          const receiptNo2 = `RCP-${new Date().getFullYear()}-${String(rcpCount2).padStart(4,"0")}`;
+          await sendReceiptWithPhoto({
+            to: guestEmailBulk, guestName: visit?.guest_name || "Guest",
+            photoUrl: downloadUrl, orderId, rideName: photo.ride_name,
+            orderType: order_type, price: price,
+            paymentMode: payment_mode || "cash", wristbandId: visit_id,
+            receiptNo: receiptNo2,
+            date: new Date().toLocaleString("en-IN", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:true }),
+          });
+          db.prepare("UPDATE orders SET email_sent = 1 WHERE id = ?").run(orderId);
+        } catch(e) { console.warn("Auto-email failed:", e.message); }
       }
 
       // Print queue
@@ -797,6 +825,180 @@ router.get("/print/test", async (req, res) => {
   try {
     const results = await printWristbands(["WB-TEST"], new Date().toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" }));
     res.json({ success: true, message: "Test wristband sent to printer", results });
+  } catch(err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════
+//  RECEIPT GENERATOR
+// ══════════════════════════════════════════════════════════════════
+
+// GET /api/receipt/:order_id
+// Returns receipt data for an order
+router.get("/receipt/:order_id", (req, res) => {
+  try {
+    const order = db.prepare("SELECT * FROM orders WHERE id = ?").get(req.params.order_id);
+    if (!order) return res.status(404).json({ success: false, error: "Order not found" });
+
+    const visit  = db.prepare("SELECT * FROM visits WHERE id = ?").get(order.visit_id);
+    const photo  = db.prepare("SELECT * FROM photos WHERE id = ?").get(order.photo_id);
+
+    // Generate sequential receipt number
+    const rcpNum = db.prepare(`
+      SELECT COUNT(*) as cnt FROM orders
+      WHERE date(created_at) = date('now','localtime')
+      AND id <= ?
+    `).get(order.id)?.cnt || 1;
+
+    const dateStr = new Date(order.created_at).toLocaleString("en-IN", {
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: true
+    });
+
+    const parkName    = process.env.PARK_NAME    || "RideSnap Park";
+    const parkSubtitle = process.env.PARK_SUBTITLE || "Ride Photo Service";
+    const parkPhone   = process.env.PARK_PHONE   || "";
+    const parkEmail   = process.env.PARK_EMAIL   || "";
+    const parkAddress = process.env.PARK_ADDRESS || "";
+
+    const typeLabels  = { digital:"Digital Copy", print:"Print Copy", frame:"Framed Print", combo:"Combo Pack" };
+    const payLabels   = { cash:"Cash", upi:"UPI", card:"Card / Swipe", split:"Split Payment", razorpay:"Online" };
+
+    // Tax calculation — 18% GST inclusive breakdown
+    // SAC: 998386 — Photography Services
+    // Even without GST registration, show for professional reference
+    const gstRate    = 18;
+    const baseAmount = Math.round((order.price * 100) / (100 + gstRate) * 100) / 100;
+    const gstAmount  = Math.round((order.price - baseAmount) * 100) / 100;
+    const cgst       = Math.round((gstAmount / 2) * 100) / 100;
+    const sgst       = Math.round((gstAmount / 2) * 100) / 100;
+
+    // Parse split payments if any
+    let paymentDetails = payLabels[order.payment_mode] || order.payment_mode || "Cash";
+    if (order.payment_mode === "split" && order.payment_splits) {
+      try {
+        const splits = JSON.parse(order.payment_splits);
+        paymentDetails = splits.map(s => `${payLabels[s.mode]||s.mode} ₹${s.amount}`).join(" + ");
+      } catch(e) {}
+    }
+
+    res.json({
+      success: true,
+      receipt: {
+        receipt_no:      `RCP-${new Date().getFullYear()}-${String(rcpNum).padStart(4,"0")}`,
+        order_id:        order.id,
+        date:            dateStr,
+        park_name:       parkName,
+        park_subtitle:   parkSubtitle,
+        park_phone:      parkPhone,
+        park_address:    parkAddress,
+        guest_name:      visit?.guest_name || "Guest",
+        guest_phone:     visit?.phone || "",
+        guest_email:     visit?.email && !visit.email.includes('wonderla.com') ? visit.email : "",
+        wristband_id:    order.visit_id,
+        item_name:       typeLabels[order.order_type] || order.order_type,
+        ride_name:       photo?.ride_name || "",
+        amount:          order.price,
+        payment_mode:    paymentDetails,
+        payment_status:  order.payment_status,
+        sac_code:        "998386",
+        gst_note:        "GST not registered. Prices are inclusive of all taxes.",
+        base_amount:     baseAmount,
+        cgst_rate:       9,
+        cgst_amount:     cgst,
+        sgst_rate:       9,
+        sgst_amount:     sgst,
+        total_tax:       gstAmount,
+        note:            "This is not a GST invoice. (For reference only)",
+        footer:          "Thank you for visiting " + parkName + "!",
+        validity:        order.order_type === "digital" || order.order_type === "combo"
+                         ? "Download link valid for 7 days" : "Collect print at counter",
+      }
+    });
+  } catch(err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════
+//  FINANCIAL REPORT
+// ══════════════════════════════════════════════════════════════════
+
+// GET /api/reports/daily?date=2026-03-21
+// Returns full financial summary for a date
+router.get("/reports/daily", (req, res) => {
+  try {
+    const date = req.query.date || new Date().toISOString().split("T")[0];
+
+    // All orders for the day
+    const orders = db.prepare(`
+      SELECT o.*, v.guest_name, v.phone, p.ride_name, p.s3_url
+      FROM orders o
+      LEFT JOIN visits v ON v.id = o.visit_id
+      LEFT JOIN photos p ON p.id = o.photo_id
+      WHERE date(o.created_at) = ?
+      ORDER BY o.created_at ASC
+    `).all(date);
+
+    // Summary stats
+    const totalRevenue = orders.reduce((s, o) => s + (o.price || 0), 0);
+    const totalOrders  = orders.length;
+
+    // By payment mode
+    const byPayment = {};
+    orders.forEach(o => {
+      const mode = o.payment_mode || "cash";
+      if (!byPayment[mode]) byPayment[mode] = { count: 0, amount: 0 };
+      byPayment[mode].count  += 1;
+      byPayment[mode].amount += o.price || 0;
+    });
+
+    // By order type
+    const byType = {};
+    orders.forEach(o => {
+      if (!byType[o.order_type]) byType[o.order_type] = { count: 0, amount: 0 };
+      byType[o.order_type].count  += 1;
+      byType[o.order_type].amount += o.price || 0;
+    });
+
+    // By ride
+    const byRide = {};
+    orders.forEach(o => {
+      const ride = o.ride_name || "Unknown";
+      if (!byRide[ride]) byRide[ride] = { count: 0, amount: 0 };
+      byRide[ride].count  += 1;
+      byRide[ride].amount += o.price || 0;
+    });
+
+    // Hourly breakdown
+    const byHour = {};
+    orders.forEach(o => {
+      const hour = new Date(o.created_at).getHours();
+      const label = `${String(hour).padStart(2,"0")}:00`;
+      if (!byHour[label]) byHour[label] = { count: 0, amount: 0 };
+      byHour[label].count  += 1;
+      byHour[label].amount += o.price || 0;
+    });
+
+    res.json({
+      success: true,
+      report: {
+        date,
+        park_name:      process.env.PARK_NAME || "RideSnap Park",
+        generated_at:   new Date().toISOString(),
+        summary: {
+          total_orders:  totalOrders,
+          total_revenue: totalRevenue,
+          avg_order:     totalOrders ? Math.round(totalRevenue / totalOrders) : 0,
+        },
+        by_payment: byPayment,
+        by_type:    byType,
+        by_ride:    byRide,
+        by_hour:    byHour,
+        orders,     // full order list for Excel export
+      }
+    });
   } catch(err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -1155,13 +1357,19 @@ router.post("/send/email", async (req, res) => {
     // Generate fresh 7-day presigned download URL
     const downloadUrl = await getPresignedReadUrl(photo.s3_key, 7 * 24 * 3600);
 
-    await sendPhotoLink({
-      to:        email,
-      guestName: visit?.guest_name,
-      photoUrl:  downloadUrl,
-      orderId:   order_id,
-      rideName:  photo.ride_name,
-      parkName:  process.env.PARK_NAME || "RideSnap Park",
+    const rcpCnt = db.prepare(`SELECT COUNT(*) as cnt FROM orders WHERE date(created_at)=date('now','localtime') AND id<=?`).get(order_id)?.cnt || 1;
+    await sendReceiptWithPhoto({
+      to:          email,
+      guestName:   visit?.guest_name || "Guest",
+      photoUrl:    downloadUrl,
+      orderId:     order_id,
+      rideName:    photo.ride_name,
+      orderType:   order.order_type,
+      price:       order.price,
+      paymentMode: order.payment_mode || "cash",
+      wristbandId: order.visit_id,
+      receiptNo:   `RCP-${new Date().getFullYear()}-${String(rcpCnt).padStart(4,"0")}`,
+      date:        new Date(order.created_at).toLocaleString("en-IN", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:true }),
     });
 
     // Update visit email if not saved

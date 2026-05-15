@@ -358,6 +358,16 @@
       <div class="send-status" id="sendStatus"></div>
     </div>
     <button class="s-close" onclick="closeSuccess()">✓ Next Guest</button>
+    <button onclick="viewReceipt()" style="
+      width:100%;margin-top:8px;padding:11px;
+      background:var(--bg);color:var(--sub);
+      border:1px solid var(--border);border-radius:12px;
+      font-family:'DM Mono',monospace;font-size:12px;
+      cursor:pointer;transition:all .15s;"
+      onmouseover="this.style.borderColor='#aaa';this.style.color='var(--text)'"
+      onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--sub)'">
+      🧾 View / Print Receipt
+    </button>
   </div>
 </div>
 
@@ -860,6 +870,12 @@
   }
 
   // ── END PAYMENT SYSTEM ────────────────────────────────────────
+
+  function viewReceipt() {
+    if (!currentOrders.length) return;
+    const orderId = currentOrders[0]?.id;
+    if (orderId) window.open(`/receipt.html?order_id=${orderId}`, '_blank');
+  }
 
   function showError(msg){ const el=document.getElementById('errMsg'); el.textContent='❌ '+msg; el.classList.add('visible'); }
   function hideError(){ document.getElementById('errMsg').classList.remove('visible'); }

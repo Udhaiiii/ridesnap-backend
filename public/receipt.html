@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RideSnap – Receipt</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+  <script src="/auth.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f0efed; --surf: #fff; --border: #e5e2db;
+      --text: #1a1a1a; --sub: #888; --yellow: #f59e0b;
+      --green: #16a34a; --red: #dc2626; --blue: #2563eb;
+    }
+    body {
+      background: var(--bg);
+      font-family: 'DM Mono', monospace;
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── SCREEN HEADER (hidden on print) ── */
+    .screen-header {
+      background: #1a1a1a; color: #fff;
+      padding: 0 24px; height: 52px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; }
+    .logo span { color: var(--yellow); }
+    .hdr-right { display: flex; align-items: center; gap: 10px; }
+    .hbtn {
+      padding: 6px 14px; border-radius: 8px; font-family: 'DM Mono', monospace;
+      font-size: 11px; font-weight: 700; cursor: pointer; border: none; transition: all .15s;
+    }
+    .hbtn-dark   { background: #2a2a2a; color: #aaa; border: 1px solid #444; }
+    .hbtn-dark:hover { border-color: var(--yellow); color: var(--yellow); }
+    .hbtn-red    { background: #2a2a2a; border: 1px solid #7f1d1d; color: #f87171; }
+    .hbtn-red:hover { background: #3a1a1a; }
+    .hbtn-print  { background: #1a1a1a; color: #fff; border: 1px solid #444; }
+    .hbtn-print:hover { background: #333; }
+
+    /* ── SEARCH BAR (hidden on print) ── */
+    .search-wrap {
+      max-width: 560px; margin: 24px auto 0; padding: 0 16px;
+    }
+    .search-box {
+      background: var(--surf); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px;
+      display: flex; gap: 10px; align-items: center;
+    }
+    .search-box input {
+      flex: 1; padding: 9px 14px; background: var(--bg);
+      border: 1px solid var(--border); border-radius: 8px;
+      font-family: 'DM Mono', monospace; font-size: 13px;
+      outline: none; color: var(--text);
+      transition: border .15s;
+    }
+    .search-box input:focus { border-color: var(--yellow); }
+    .search-btn {
+      padding: 10px 20px; background: #1a1a1a; color: #fff;
+      border: none; border-radius: 8px; font-family: 'DM Mono', monospace;
+      font-size: 12px; font-weight: 700; cursor: pointer; transition: background .15s;
+    }
+    .search-btn:hover { background: #333; }
+
+    /* ── SEND ACTIONS (hidden on print) ── */
+    .send-wrap {
+      max-width: 560px; margin: 16px auto 0; padding: 0 16px;
+      display: none;
+    }
+    .send-wrap.show { display: block; }
+    .send-card {
+      background: var(--surf); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px;
+    }
+    .send-title { font-size: 11px; color: var(--sub); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+    .send-btns  { display: flex; gap: 8px; flex-wrap: wrap; }
+    .sbtn {
+      flex: 1; min-width: 100px; padding: 10px;
+      border: none; border-radius: 8px; font-family: 'DM Mono', monospace;
+      font-size: 11px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: all .15s;
+    }
+    .sbtn:disabled { opacity: .5; cursor: not-allowed; }
+    .sbtn-wa    { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .sbtn-wa:hover:not(:disabled)    { background: #bbf7d0; }
+    .sbtn-email { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+    .sbtn-email:hover:not(:disabled) { background: #bfdbfe; }
+    .sbtn-sms   { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; }
+    .sbtn-sms:hover:not(:disabled)   { background: #ddd6fe; }
+    .send-status { font-size: 11px; text-align: center; padding: 6px 0; min-height: 20px; }
+    .ss-ok  { color: var(--green); }
+    .ss-err { color: var(--red); }
+
+    /* ── THERMAL RECEIPT ── */
+    .receipt-outer {
+      max-width: 360px; margin: 20px auto 40px;
+      padding: 0 16px;
+    }
+
+    /* Paper effect */
+    .receipt-paper {
+      background: #fff;
+      box-shadow: 0 2px 12px rgba(0,0,0,.12);
+      position: relative;
+    }
+
+    /* Zigzag top */
+    .receipt-paper::before {
+      content: '';
+      display: block;
+      height: 12px;
+      background:
+        linear-gradient(135deg, var(--bg) 25%, transparent 25%) -8px 0,
+        linear-gradient(225deg, var(--bg) 25%, transparent 25%) -8px 0,
+        linear-gradient(315deg, var(--bg) 25%, transparent 25%),
+        linear-gradient(45deg,  var(--bg) 25%, transparent 25%);
+      background-size: 16px 12px;
+      background-color: #fff;
+    }
+
+    /* Zigzag bottom */
+    .receipt-paper::after {
+      content: '';
+      display: block;
+      height: 12px;
+      background:
+        linear-gradient(135deg, #fff 25%, transparent 25%) -8px 0,
+        linear-gradient(225deg, #fff 25%, transparent 25%) -8px 0,
+        linear-gradient(315deg, #fff 25%, transparent 25%),
+        linear-gradient(45deg,  #fff 25%, transparent 25%);
+      background-size: 16px 12px;
+      background-color: var(--bg);
+    }
+
+    .receipt-body { padding: 20px 24px 16px; }
+
+    /* ── RECEIPT CONTENT ── */
+    .r-center { text-align: center; }
+
+    .r-logo-icon { font-size: 36px; margin-bottom: 6px; }
+    .r-park-name {
+      font-family: 'Syne', sans-serif; font-weight: 800;
+      font-size: 17px; letter-spacing: 1px; margin-bottom: 2px;
+    }
+    .r-park-sub  { font-size: 11px; color: var(--sub); letter-spacing: 1px; margin-bottom: 6px; }
+    .r-park-addr { font-size: 10px; color: var(--sub); line-height: 1.7; margin-bottom: 6px; }
+    .r-park-contact { font-size: 10px; color: var(--sub); margin-bottom: 4px; }
+
+    /* Divider styles */
+    .r-div-solid { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
+    .r-div-dash  { border: none; border-top: 1px dashed #ccc; margin: 10px 0; }
+
+    /* Meta row */
+    .r-meta { display: flex; justify-content: space-between; font-size: 10px; color: var(--sub); margin: 8px 0; }
+    .r-meta strong { color: var(--text); font-size: 11px; }
+
+    /* Section label */
+    .r-section { font-size: 9px; letter-spacing: 2px; color: var(--sub); text-transform: uppercase; margin: 10px 0 6px; }
+
+    /* Info rows */
+    .r-row { display: flex; justify-content: space-between; font-size: 11px; padding: 2px 0; }
+    .r-row .rk { color: var(--sub); }
+    .r-row .rv { font-weight: 700; text-align: right; max-width: 60%; }
+
+    /* Item row */
+    .r-item { padding: 8px 0; }
+    .r-item-name  { font-size: 12px; font-weight: 700; }
+    .r-item-desc  { font-size: 10px; color: var(--sub); margin-top: 1px; }
+    .r-item-price { font-size: 13px; font-weight: 700; float: right; margin-top: -18px; }
+    .r-item::after { content: ''; display: block; clear: both; }
+
+    /* Tax table */
+    .r-tax { width: 100%; font-size: 10px; border-collapse: collapse; }
+    .r-tax td { padding: 2px 0; }
+    .r-tax td:last-child { text-align: right; }
+    .r-tax .tax-key { color: var(--sub); }
+    .r-tax .tax-total { font-weight: 700; color: var(--text); border-top: 1px dashed #ccc; padding-top: 4px; }
+
+    /* Total box */
+    .r-total {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; margin: 4px 0;
+    }
+    .r-total-lbl { font-size: 13px; font-weight: 700; }
+    .r-total-amt { font-size: 22px; font-weight: 800; font-family: 'Syne', sans-serif; }
+
+    /* Payment */
+    .r-payment { font-size: 11px; display: flex; justify-content: space-between; padding: 4px 0; }
+    .r-payment .rk { color: var(--sub); }
+    .r-payment .rv { font-weight: 700; }
+    .r-paid-badge {
+      display: inline-block; font-size: 9px; font-weight: 700;
+      padding: 1px 8px; border-radius: 20px; letter-spacing: 1px;
+      background: #f0fdf4; color: var(--green); border: 1px solid #bbf7d0;
+    }
+
+    /* Barcode area */
+    .r-barcode { text-align: center; margin: 10px 0 4px; }
+    .r-barcode svg { width: 100%; height: 40px; }
+    .r-order-ref { font-size: 9px; color: var(--sub); text-align: center; letter-spacing: 1px; margin-top: 2px; font-family: monospace; }
+
+    /* Notice */
+    .r-notice { font-size: 9px; color: var(--sub); text-align: center; line-height: 1.6; font-style: italic; }
+
+    /* Footer */
+    .r-footer { text-align: center; margin-top: 10px; }
+    .r-thankyou { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 13px; margin-bottom: 4px; }
+    .r-footer-sub { font-size: 10px; color: var(--sub); line-height: 1.7; }
+
+    /* Download notice (digital) */
+    .r-download-notice {
+      background: #f0fdf4; border: 1px dashed #86efac;
+      border-radius: 6px; padding: 8px 10px; margin: 8px 0;
+      font-size: 10px; color: #166534; text-align: center; line-height: 1.6;
+    }
+    .r-print-notice {
+      background: #eff6ff; border: 1px dashed #93c5fd;
+      border-radius: 6px; padding: 8px 10px; margin: 8px 0;
+      font-size: 10px; color: #1e40af; text-align: center; line-height: 1.6;
+    }
+
+    /* Empty / loading */
+    .state-box { max-width: 360px; margin: 40px auto; padding: 40px 20px; text-align: center; color: var(--sub); }
+    .state-icon { font-size: 48px; margin-bottom: 12px; }
+    .state-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; color: var(--text); margin-bottom: 6px; }
+
+    /* ── PRINT STYLES ── */
+    @media print {
+      body { background: #fff; }
+      .screen-header, .search-wrap, .send-wrap { display: none !important; }
+      .receipt-outer { max-width: 80mm; margin: 0 auto; padding: 0; }
+      .receipt-paper::before,
+      .receipt-paper::after { display: none; }
+      .receipt-paper { box-shadow: none; }
+      .receipt-body { padding: 4mm 6mm; }
+      .r-park-name { font-size: 14px; }
+      .r-total-amt { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Screen header -->
+<div class="screen-header">
+  <div class="logo">🧾 RideSnap <span>Receipt</span></div>
+  <div class="hdr-right">
+    <span style="font-size:11px;color:#555;font-family:'DM Mono',monospace">👤 <span id="hdrUser">—</span></span>
+    <button class="hbtn hbtn-print" onclick="window.print()">🖨️ Print</button>
+    <button class="hbtn hbtn-dark"  onclick="window.location.href='/'">← Portal</button>
+    <button class="hbtn hbtn-red"   onclick="rsLogout()">⏻ Logout</button>
+  </div>
+</div>
+
+<!-- Search -->
+<div class="search-wrap">
+  <div class="search-box">
+    <span style="font-size:14px;color:var(--sub)">🔍</span>
+    <input type="text" id="searchInput"
+           placeholder="Enter Order ID  e.g. ORD-ABC123"
+           onkeydown="if(event.key==='Enter') loadReceipt()"/>
+    <button class="search-btn" onclick="loadReceipt()">Load</button>
+  </div>
+</div>
+
+<!-- Send actions -->
+<div class="send-wrap" id="sendWrap">
+  <div class="send-card">
+    <div class="send-title">Send Receipt to Guest</div>
+    <div class="send-btns">
+      <button class="sbtn sbtn-wa"    id="btnWA"    onclick="sendWA()">💬 WhatsApp</button>
+      <button class="sbtn sbtn-email" id="btnEmail" onclick="sendEmail()">📧 Email</button>
+      <button class="sbtn sbtn-sms"   id="btnSMS"   onclick="sendSMS()">📱 SMS</button>
+    </div>
+    <div class="send-status" id="sendStatus"></div>
+  </div>
+</div>
+
+<!-- Receipt area -->
+<div class="receipt-outer" id="receiptOuter">
+  <div class="state-box">
+    <div class="state-icon">🧾</div>
+    <div class="state-title">Enter Order ID</div>
+    <div>Search above to load a receipt</div>
+  </div>
+</div>
+
+<script>
+  // Auth
+  (async () => {
+    const user = await requireAuth(["counter","admin"]);
+    if (user) document.getElementById('hdrUser').textContent = user.name;
+  })();
+
+  const API = (window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1')
+    ? 'http://localhost:5000/api' : window.location.origin+'/api';
+
+  let R = null; // current receipt data
+  let currentOrderId = null;
+
+  // Auto-load from URL param
+  window.onload = () => {
+    const p = new URLSearchParams(window.location.search).get('order_id');
+    if (p) { document.getElementById('searchInput').value = p; loadReceipt(); }
+  };
+
+  // ── LOAD ─────────────────────────────────────────────────────
+  async function loadReceipt() {
+    const id = document.getElementById('searchInput').value.trim().toUpperCase();
+    if (!id) return;
+
+    document.getElementById('receiptOuter').innerHTML =
+      '<div class="state-box"><div class="state-icon" style="animation:spin 1s linear infinite;display:inline-block">⏳</div><div>Loading...</div></div>';
+    document.getElementById('sendWrap').classList.remove('show');
+
+    try {
+      const res  = await fetch(`${API}/receipt/${id}`);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Not found');
+      R = data.receipt;
+      currentOrderId = id;
+      renderReceipt(R);
+      document.getElementById('sendWrap').classList.add('show');
+      resetSendBtns();
+    } catch(e) {
+      document.getElementById('receiptOuter').innerHTML =
+        `<div class="state-box"><div class="state-icon">❌</div><div class="state-title">Not Found</div><div>${e.message}</div></div>`;
+    }
+  }
+
+  // ── RENDER ────────────────────────────────────────────────────
+  function renderReceipt(r) {
+    const isDigital = r.item_type === 'digital' || r.item_type === 'combo';
+    const isPrint   = r.item_type === 'print'   || r.item_type === 'frame' || r.item_type === 'combo';
+
+    // Generate simple barcode-like visual from order ID
+    const bars = generateBarSVG(r.order_id);
+
+    document.getElementById('receiptOuter').innerHTML = `
+    <div class="receipt-paper">
+      <div class="receipt-body">
+
+        <!-- Park header -->
+        <div class="r-center">
+          <div class="r-logo-icon">📸</div>
+          <div class="r-park-name">${r.park_name}</div>
+          <div class="r-park-sub">${r.park_subtitle || 'Ride Photo Service'}</div>
+          ${r.park_address ? `<div class="r-park-addr">${r.park_address}</div>` : ''}
+          ${r.park_phone   ? `<div class="r-park-contact">☎ ${r.park_phone}</div>` : ''}
+          ${r.park_email   ? `<div class="r-park-contact">✉ ${r.park_email}</div>` : ''}
+          ${r.park_website ? `<div class="r-park-contact">${r.park_website}</div>` : ''}
+        </div>
+
+        <hr class="r-div-solid"/>
+
+        <!-- Receipt meta -->
+        <div class="r-meta">
+          <div>Receipt No<br/><strong>${r.receipt_no}</strong></div>
+          <div style="text-align:right">Date &amp; Time<br/><strong>${r.date}</strong></div>
+        </div>
+
+        <hr class="r-div-dash"/>
+
+        <!-- Guest -->
+        <div class="r-section">Guest Details</div>
+        <div class="r-row"><span class="rk">Name</span>      <span class="rv">${r.guest_name || 'Guest'}</span></div>
+        ${r.guest_phone ? `<div class="r-row"><span class="rk">Phone</span><span class="rv">${r.guest_phone}</span></div>` : ''}
+        <div class="r-row"><span class="rk">Wristband</span> <span class="rv">${r.wristband_id}</span></div>
+
+        <hr class="r-div-dash"/>
+
+        <!-- Item -->
+        <div class="r-section">Items Purchased</div>
+        <div class="r-item">
+          <span class="r-item-price">₹${r.amount}</span>
+          <div class="r-item-name">${r.item_name}</div>
+          <div class="r-item-desc">Ride: ${r.ride_name || '—'}</div>
+        </div>
+
+        <hr class="r-div-dash"/>
+
+        <!-- Tax breakup -->
+        <table class="r-tax">
+          <tr><td class="tax-key">Base Amount</td><td>₹${(r.base_amount||0).toFixed(2)}</td></tr>
+          <tr><td class="tax-key">CGST (9%)</td>  <td>₹${(r.cgst_amount||0).toFixed(2)}</td></tr>
+          <tr><td class="tax-key">SGST (9%)</td>  <td>₹${(r.sgst_amount||0).toFixed(2)}</td></tr>
+          <tr>
+            <td class="tax-key tax-total">Total Tax (18%)</td>
+            <td class="tax-total">₹${(r.total_tax||0).toFixed(2)}</td>
+          </tr>
+        </table>
+
+        <hr class="r-div-solid"/>
+
+        <!-- Total -->
+        <div class="r-total">
+          <span class="r-total-lbl">TOTAL</span>
+          <span class="r-total-amt">₹${r.amount}</span>
+        </div>
+
+        <!-- Payment -->
+        <div class="r-payment">
+          <span class="rk">Payment Mode</span>
+          <span class="rv">${r.payment_mode}</span>
+        </div>
+        <div class="r-payment">
+          <span class="rk">Status</span>
+          <span class="rv"><span class="r-paid-badge">✓ PAID</span></span>
+        </div>
+
+        <hr class="r-div-dash"/>
+
+        ${isDigital ? `
+        <div class="r-download-notice">
+          📱 Download link sent to your email / WhatsApp<br/>
+          Valid for 7 days from purchase date
+        </div>` : ''}
+
+        ${isPrint ? `
+        <div class="r-print-notice">
+          🖨️ Please collect your print at the<br/>
+          <strong>Photo Counter</strong>
+        </div>` : ''}
+
+        <!-- Barcode -->
+        <div class="r-barcode">${bars}</div>
+        <div class="r-order-ref">${r.order_id}</div>
+
+        <hr class="r-div-dash"/>
+
+        <!-- Notice -->
+        <div class="r-notice">
+          ${r.note || 'This is not a GST invoice.'}<br/>
+          Prices are inclusive of all taxes.
+        </div>
+
+        <!-- Thank you -->
+        <div class="r-footer">
+          <hr class="r-div-dash"/>
+          <div class="r-thankyou">Thank you for visiting!</div>
+          <div class="r-footer-sub">
+            ${r.park_name}<br/>
+            We hope to see you again soon. 🎉
+          </div>
+        </div>
+
+      </div>
+    </div>`;
+  }
+
+  // ── BARCODE GENERATOR (visual bars from order ID) ─────────────
+  function generateBarSVG(orderId) {
+    const chars = (orderId || '').replace(/[^A-Z0-9]/g,'');
+    const W = 280, H = 36, barW = Math.floor(W / (chars.length * 3 + 4));
+    let bars = '';
+    let x = 4;
+    for (let i = 0; i < chars.length; i++) {
+      const code = chars.charCodeAt(i);
+      // Narrow bar
+      bars += `<rect x="${x}" y="0" width="${barW}" height="${H}" fill="#1a1a1a"/>`;
+      x += barW * 2;
+      // Wide bar (based on char value)
+      const wide = (code % 3) + 1;
+      bars += `<rect x="${x}" y="0" width="${barW * wide}" height="${H}" fill="#1a1a1a"/>`;
+      x += barW * (wide + 1);
+    }
+    return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${bars}</svg>`;
+  }
+
+  // ── SEND FUNCTIONS ────────────────────────────────────────────
+  function setStatus(msg, ok) {
+    const el = document.getElementById('sendStatus');
+    el.textContent = msg;
+    el.className = 'send-status ' + (ok ? 'ss-ok' : 'ss-err');
+  }
+
+  function resetSendBtns() {
+    [['btnWA','💬 WhatsApp'],['btnEmail','📧 Email'],['btnSMS','📱 SMS']].forEach(([id,lbl]) => {
+      const el = document.getElementById(id);
+      el.disabled = false; el.textContent = lbl;
+    });
+    document.getElementById('sendStatus').textContent = '';
+  }
+
+  async function sendWA() {
+    const btn = document.getElementById('btnWA');
+    btn.disabled = true; btn.textContent = '⏳';
+    try {
+      const d = await (await fetch(`${API}/send/whatsapp-link`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ order_id: currentOrderId, phone: R?.guest_phone })
+      })).json();
+      if (!d.success) throw new Error(d.error);
+      window.open(d.whatsapp_url, '_blank');
+      btn.textContent = '✅ Opened!';
+      setStatus('💬 WhatsApp opened — guest taps Send!', true);
+    } catch(e) { btn.disabled=false; btn.textContent='💬 WhatsApp'; setStatus('❌ '+e.message, false); }
+  }
+
+  async function sendEmail() {
+    const guestEmail = R?.guest_email;
+    const email = guestEmail || prompt('Enter guest email:');
+    if (!email || !email.includes('@')) { setStatus('❌ Enter valid email', false); return; }
+    const btn = document.getElementById('btnEmail');
+    btn.disabled = true; btn.textContent = '⏳';
+    try {
+      const d = await (await fetch(`${API}/send/email`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ order_id: currentOrderId, email })
+      })).json();
+      if (!d.success) throw new Error(d.error);
+      btn.textContent = '✅ Sent!';
+      setStatus('📧 Receipt sent to ' + email, true);
+    } catch(e) { btn.disabled=false; btn.textContent='📧 Email'; setStatus('❌ '+e.message, false); }
+  }
+
+  async function sendSMS() {
+    const phone = R?.guest_phone;
+    if (!phone) { setStatus('❌ No phone number on record', false); return; }
+    const btn = document.getElementById('btnSMS');
+    btn.disabled = true; btn.textContent = '⏳';
+    try {
+      const d = await (await fetch(`${API}/send/sms`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ order_id: currentOrderId, phone })
+      })).json();
+      if (!d.success) throw new Error(d.error);
+      btn.textContent = '✅ Sent!';
+      setStatus('📱 SMS sent to ' + phone, true);
+    } catch(e) { btn.disabled=false; btn.textContent='📱 SMS'; setStatus('❌ '+e.message, false); }
+  }
+</script>
+</body>
+</html>
