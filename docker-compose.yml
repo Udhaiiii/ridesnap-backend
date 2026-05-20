@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ridesnap
+      POSTGRES_PASSWORD: ridesnap
+      POSTGRES_DB: ridesnap
+    ports:
+      - '5432:5432'
+    volumes:
+      - ridesnap_pg:/var/lib/postgresql/data
+
+volumes:
+  ridesnap_pg:

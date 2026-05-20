@@ -1,10 +1,11 @@
 node_modules/
-.env
-*.log
-ridesnap.db
-*.db-shm
-*.db-wal
-.DS_Store
 dist/
 build/
+.env
+.env.local
+*.db
+uploads/
+.DS_Store
 coverage/
+*.log
+.vite/

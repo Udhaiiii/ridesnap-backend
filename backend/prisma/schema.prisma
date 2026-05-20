@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Visit {
+  id         String   @id
+  guestName  String?  @map("guest_name")
+  phone      String?
+  email      String?
+  entryTime  DateTime @default(now()) @map("entry_time")
+  exitTime   DateTime? @map("exit_time")
+  status     String   @default("active")
+  photos     Photo[]
+  orders     Order[]
+
+  @@map("visits")
+}
+
+model Photo {
+  id           String   @id
+  visitId      String   @map("visit_id")
+  rideId       String   @map("ride_id")
+  rideName     String   @map("ride_name")
+  s3Key        String?  @map("s3_key")
+  s3Url        String?  @map("s3_url")
+  watermarkUrl String?  @map("watermark_url")
+  fileSize     Int?     @map("file_size")
+  status       String   @default("pending")
+  capturedAt   DateTime @default(now()) @map("captured_at")
+  visit        Visit    @relation(fields: [visitId], references: [id])
+  orders       Order[]
+  printJobs    PrintQueueItem[]
+
+  @@index([visitId, capturedAt])
+  @@map("photos")
+}
+
+model Order {
+  id              String   @id
+  visitId         String   @map("visit_id")
+  photoId         String   @map("photo_id")
+  orderType       String   @map("order_type")
+  price           Int
+  paymentStatus   String   @default("pending") @map("payment_status")
+  paymentMode     String?  @map("payment_mode")
+  paymentSplits   String?  @map("payment_splits")
+  deliveryStatus  String   @default("pending") @map("delivery_status")
+  emailSent       Boolean  @default(false) @map("email_sent")
+  printQueued     Boolean  @default(false) @map("print_queued")
+  createdAt       DateTime @default(now()) @map("created_at")
+  visit           Visit    @relation(fields: [visitId], references: [id])
+  photo           Photo    @relation(fields: [photoId], references: [id])
+  printJobs       PrintQueueItem[]
+  shortLinks      ShortLink[]
+
+  @@index([createdAt])
+  @@index([visitId])
+  @@map("orders")
+}
+
+model PrintQueueItem {
+  id          String    @id
+  orderId     String    @map("order_id")
+  photoId     String    @map("photo_id")
+  visitId     String    @map("visit_id")
+  guestName   String?   @map("guest_name")
+  phone       String?
+  printSize   String    @default("A4") @map("print_size")
+  copies      Int       @default(1)
+  status      String    @default("queued")
+  queuedAt    DateTime  @default(now()) @map("queued_at")
+  printedAt   DateTime? @map("printed_at")
+  collectedAt DateTime? @map("collected_at")
+  order       Order     @relation(fields: [orderId], references: [id])
+  photo       Photo     @relation(fields: [photoId], references: [id])
+
+  @@index([queuedAt, status])
+  @@map("print_queue")
+}
+
+model Ride {
+  id    String @id
+  name  String
+  emoji String?
+
+  @@map("rides")
+}
+
+model Wristband {
+  id          String    @id
+  status      String    @default("inactive")
+  batchDate   String    @map("batch_date")
+  batchLabel  String?   @map("batch_label")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  activatedAt DateTime? @map("activated_at")
+
+  @@index([batchDate])
+  @@index([status, batchDate])
+  @@map("wristbands")
+}
+
+model ShortLink {
+  code      String   @id
+  orderId   String   @map("order_id")
+  photoId   String   @map("photo_id")
+  visitId   String   @map("visit_id")
+  expiresAt DateTime @map("expires_at")
+  clicks    Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  order     Order    @relation(fields: [orderId], references: [id])
+
+  @@map("short_links")
+}
+
+model User {
+  id         String    @id
+  username   String    @unique
+  password   String
+  role       String
+  name       String?
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  lastLogin  DateTime? @map("last_login")
+  sessions   Session[]
+
+  @@map("users")
+}
+
+model Session {
+  token     String   @id
+  userId    String   @map("user_id")
+  role      String
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("sessions")
+}
