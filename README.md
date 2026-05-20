@@ -7,6 +7,10 @@ Production-oriented migration of the legacy Express/SQLite `new-update` stack to
 
 Branch: **`newTechStack`**
 
+See **[ARCHITECTURE.md](ARCHITECTURE.md)** for monorepo layout and data flow.
+
+**Step-by-step run guide:** **[RUN.md](RUN.md)** (includes where Prisma lives: `backend/prisma/schema.prisma`).
+
 Legacy code is preserved under `ridesnap-backend/` for reference.
 
 ---
@@ -64,7 +68,8 @@ npm run dev
 ```
 
 API: `http://localhost:5000`  
-Health: `GET /api/health`
+Health: `GET /api/health`  
+OpenAPI UI: `http://localhost:5000/api/docs` (dev, or set `ENABLE_SWAGGER=true`)
 
 Default admin: **`admin` / `admin@123`** (change after first login)
 
@@ -79,7 +84,7 @@ npm run dev
 
 UI: `http://localhost:5173`
 
-### Monorepo (both)
+### Monorepo (NestJS + React)
 
 From repo root:
 
@@ -87,6 +92,17 @@ From repo root:
 npm install
 npm run dev
 ```
+
+React UI routes: `/photo-desk` (full payment flow), `/bulk-qr`, `/admin`, `/reports`, `/photographer`, `/print`, `/receipt/:orderId`.
+
+### Legacy Express + SQLite (HTML UI)
+
+```bash
+npm run install:legacy
+npm run dev:legacy
+```
+
+Serves `ridesnap-backend/public/*.html` at `http://localhost:5000`.
 
 ---
 

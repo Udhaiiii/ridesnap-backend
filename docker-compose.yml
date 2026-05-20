@@ -10,6 +10,35 @@ services:
       - '5432:5432'
     volumes:
       - ridesnap_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ridesnap']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Uncomment for full stack (build images first: docker compose build)
+  # backend:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/Dockerfile.backend
+  #   environment:
+  #     DATABASE_URL: postgresql://ridesnap:ridesnap@postgres:5432/ridesnap
+  #     NODE_ENV: production
+  #     PORT: 5000
+  #   ports:
+  #     - '5000:5000'
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+  # frontend:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/Dockerfile.frontend
+  #   ports:
+  #     - '8080:80'
+  #   depends_on:
+  #     - backend
 
 volumes:
   ridesnap_pg:

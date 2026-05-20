@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { IsArray, IsOptional, IsString } from 'class-validator';
 import { OrdersService } from './orders.service';
 
@@ -20,6 +21,7 @@ class BulkOrderDto {
   @IsOptional() @IsString() payment_splits?: string;
 }
 
+@ApiTags('orders')
 @Controller('api/orders')
 export class OrdersController {
   constructor(private readonly service: OrdersService) {}

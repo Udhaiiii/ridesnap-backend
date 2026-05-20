@@ -1,24 +1,29 @@
 import { Body, Controller, Get, Headers, Post } from '@nestjs/common';
+import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsNotEmpty, IsString } from 'class-validator';
 import { AuthService } from './auth.service';
 import { Public } from './auth.guard';
 
 class LoginDto {
+  @ApiProperty({ example: 'admin' })
   @IsString()
   @IsNotEmpty()
   username!: string;
 
+  @ApiProperty({ example: 'admin@123' })
   @IsString()
   @IsNotEmpty()
   password!: string;
 }
 
+@ApiTags('auth')
 @Controller('api/auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Public()
   @Post('login')
+  @ApiOperation({ summary: 'Staff login — returns session token' })
   async login(@Body() dto: LoginDto) {
     const result = await this.auth.login(dto.username, dto.password);
     return { success: true, ...result };

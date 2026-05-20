@@ -3,12 +3,12 @@ import {
   Controller,
   Delete,
   Get,
-  Headers,
   Param,
   Patch,
   Post,
   Req,
 } from '@nestjs/common';
+import { ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { IsInt, IsOptional, IsString } from 'class-validator';
 import { Request } from 'express';
 import { Roles } from '../auth/auth.guard';
@@ -29,6 +29,8 @@ class UpdateUserDto {
   @IsOptional() @IsInt() active?: number;
 }
 
+@ApiTags('users')
+@ApiSecurity('session')
 @Controller('api/users')
 @Roles('admin')
 export class UsersController {

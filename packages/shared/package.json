@@ -1,0 +1,7 @@
+{
+  "name": "@ridesnap/shared",
+  "version": "2.0.0",
+  "private": true,
+  "main": "src/constants.ts",
+  "types": "src/constants.ts"
+}

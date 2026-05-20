@@ -25,6 +25,7 @@
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.12",
     "@nestjs/platform-express": "^11.0.12",
+    "@nestjs/swagger": "^11.0.5",
     "@nestjs/throttler": "^6.4.0",
     "@prisma/client": "^6.5.0",
     "bcrypt": "^5.1.1",

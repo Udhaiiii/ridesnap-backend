@@ -184,7 +184,7 @@ export class WristbandsService {
       GROUP BY batch_label, batch_date
       ORDER BY batch_date DESC
     `;
-    const batches = rows.map((r) => ({
+    const batches = rows.map((r: (typeof rows)[number]) => ({
       batch_label: r.batch_label,
       batch_date: r.batch_date,
       count: Number(r.count),

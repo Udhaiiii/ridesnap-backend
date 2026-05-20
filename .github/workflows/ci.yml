@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main, newTechStack, new-update]
+  pull_request:
+    branches: [main, newTechStack]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ridesnap
+          POSTGRES_PASSWORD: ridesnap
+          POSTGRES_DB: ridesnap
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+        working-directory: .
+      - run: npm run prisma:generate -w backend
+        working-directory: .
+      - run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://ridesnap:ridesnap@localhost:5432/ridesnap
+      - run: npm run build -w backend
+        working-directory: .
+      - run: npm test -w backend
+        working-directory: .
+        env:
+          DATABASE_URL: postgresql://ridesnap:ridesnap@localhost:5432/ridesnap
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+        working-directory: .
+      - run: npm run test -w frontend
+        working-directory: .
+      - run: npm run build -w frontend
+        working-directory: .
