@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { api } from '@/shared/api/client';
 import { formatInr, formatTime, payLabel, pkgLabel } from '@/shared/lib/format';
-import { UserBar } from '@/shared/components/UserBar';
 
 interface ReportOrder {
   id: string;
@@ -281,7 +280,6 @@ export default function FinancialReportPage() {
           </>
         )}
       </div>
-      <UserBar pageName="Reports" />
     </>
   );
 }

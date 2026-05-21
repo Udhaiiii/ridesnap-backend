@@ -1,6 +1,24 @@
-const API_BASE =
-  import.meta.env.VITE_API_URL ??
-  (import.meta.env.DEV ? '/api' : `${window.location.origin}/api`);
+/**
+ * In dev, always use the Vite proxy (`/api` → localhost:5000) so login avoids CORS.
+ * A direct `VITE_API_URL=http://localhost:5000/api` triggers cross-origin requests from :5173.
+ */
+function resolveApiBase(): string {
+  const configured = import.meta.env.VITE_API_URL?.trim();
+
+  if (import.meta.env.DEV) {
+    if (
+      !configured ||
+      /localhost:5000|127\.0\.0\.1:5000/.test(configured)
+    ) {
+      return '/api';
+    }
+    return configured;
+  }
+
+  return configured ?? `${window.location.origin}/api`;
+}
+
+const API_BASE = resolveApiBase();
 
 export function getToken(): string | null {
   return localStorage.getItem('rs_token');

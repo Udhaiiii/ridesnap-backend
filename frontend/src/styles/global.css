@@ -1,46 +1,78 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-rs-display: 'Bebas Neue', cursive;
+  --font-rs-body: 'DM Sans', sans-serif;
+  --font-rs-mono: 'DM Mono', monospace;
+
+  --color-rs-bg: #0d0f17;
+  --color-rs-surf: #141824;
+  --color-rs-surf2: #1c2030;
+  --color-rs-border: #272d3f;
+  --color-rs-border2: #313754;
+  --color-rs-text: #f0f2f8;
+  --color-rs-sub: #7c8599;
+  --color-rs-amber: #fbbf24;
+  --color-rs-green: #34d399;
+  --color-rs-rose: #fb7185;
+
+  --animate-fade-up: fade-up 0.6s ease forwards;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Legacy module pages — shared form/table utilities */
 :root {
-  --bg: #0a0f1e;
-  --surface: #0d1829;
-  --border: #1e293b;
-  --text: #f1f5f9;
-  --muted: #64748b;
-  --accent: #facc15;
+  --bg: #0d0f17;
+  --surface: #141824;
+  --border: #272d3f;
+  --text: #f0f2f8;
+  --muted: #7c8599;
+  --accent: #fbbf24;
   --accent-dim: #ca8a04;
   --danger: #fb7185;
-  --success: #4ade80;
-  --font-display: 'Syne', sans-serif;
+  --success: #34d399;
+  --font-display: 'Bebas Neue', cursive;
   --font-mono: 'DM Mono', monospace;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-mono);
-  min-height: 100vh;
-}
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+  }
 
-a {
-  color: var(--accent);
-  text-decoration: none;
-}
+  a {
+    color: var(--accent);
+    text-decoration: none;
+  }
 
-button,
-input,
-select,
-textarea {
-  font-family: inherit;
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+  }
 }
 
 .page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px 20px 80px;
+  width: 100%;
 }
 
 .card {
@@ -52,7 +84,7 @@ textarea {
 
 .btn {
   background: var(--accent);
-  color: #0f172a;
+  color: #0d0f17;
   border: none;
   border-radius: 10px;
   padding: 12px 20px;
@@ -74,7 +106,7 @@ textarea {
 
 .input {
   width: 100%;
-  background: #0a1220;
+  background: var(--rs-surf2, #1c2030);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px 14px;
@@ -201,7 +233,7 @@ textarea {
 
 .pay-mode-btn.active {
   border-color: var(--accent);
-  background: rgba(250, 204, 21, 0.08);
+  background: rgba(251, 191, 36, 0.08);
 }
 
 .pay-mode-btn .pm-label {
@@ -367,7 +399,7 @@ textarea {
 
 .photo-card-select.selected {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.25);
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.25);
 }
 
 @media print {

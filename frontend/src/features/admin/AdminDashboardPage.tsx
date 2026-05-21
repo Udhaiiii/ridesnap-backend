@@ -4,7 +4,6 @@ import { api } from '@/shared/api/client';
 import { formatInr, formatTime, pkgLabel } from '@/shared/lib/format';
 import { Modal } from '@/shared/components/Modal';
 import { PageHeader } from '@/shared/components/PageHeader';
-import { UserBar } from '@/shared/components/UserBar';
 import { usePolling } from '@/shared/hooks/usePolling';
 import type { DashboardStats } from '@/shared/types/api';
 
@@ -461,7 +460,6 @@ export default function AdminDashboardPage() {
         </button>
       </Modal>
 
-      <UserBar pageName="Admin" />
     </>
   );
 }

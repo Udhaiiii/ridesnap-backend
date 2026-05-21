@@ -4,16 +4,13 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { setupSwagger } from './swagger';
+import { getCorsOptions } from './config/cors.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
 
-  app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') ?? '*',
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'],
-  });
+  app.enableCors(getCorsOptions());
 
   app.useGlobalPipes(
     new ValidationPipe({

@@ -3,7 +3,6 @@ import { api } from '@/shared/api/client';
 import { photoUrl, str } from '@/shared/lib/case';
 import { formatInr, pkgLabel, payLabel } from '@/shared/lib/format';
 import { Modal } from '@/shared/components/Modal';
-import { UserBar } from '@/shared/components/UserBar';
 import QRCode from 'qrcode';
 
 type Pkg = 'digital' | 'print' | 'frame' | 'combo';
@@ -517,7 +516,6 @@ export default function PhotoDeskPage() {
         </button>
       </Modal>
 
-      <UserBar pageName="Photo Desk" />
     </>
   );
 }

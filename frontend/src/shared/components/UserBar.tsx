@@ -14,15 +14,15 @@ interface Props {
 export function UserBar({ pageName }: Props) {
   const { user, logout } = useAuthStore();
   return (
-    <div className="user-bar">
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        <span style={{ color: '#fbbf24' }}>📸 RideSnap</span>
+    <div className="user-bar no-print">
+      <div className="flex items-center gap-3">
+        <span className="text-rs-amber">📸 RideSnap</span>
         <span>·</span>
         <span>{pageName}</span>
       </div>
-      <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+      <div className="flex items-center gap-4">
         <span>{ROLE_LABELS[user?.role ?? ''] ?? user?.role}</span>
-        <span style={{ color: '#aaa' }}>{user?.name}</span>
+        <span className="text-[#aaa]">{user?.name}</span>
         <button type="button" className="btn-ghost" onClick={() => void logout()}>
           Logout
         </button>

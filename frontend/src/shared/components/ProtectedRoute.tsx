@@ -18,7 +18,7 @@ export function ProtectedRoute({ children, roles }: Props) {
 
   if (!ready) {
     return (
-      <div className="page" style={{ textAlign: 'center', paddingTop: 80 }}>
+      <div className="flex min-h-screen items-center justify-center bg-rs-bg font-rs-mono text-sm text-rs-sub">
         Loading…
       </div>
     );

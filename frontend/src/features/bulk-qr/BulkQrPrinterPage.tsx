@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { api } from '@/shared/api/client';
-import { UserBar } from '@/shared/components/UserBar';
 
 interface Batch {
   batch_label: string;
@@ -247,7 +246,6 @@ export default function BulkQrPrinterPage() {
         </div>
       )}
 
-      <UserBar pageName="Bulk QR" />
     </>
   );
 }

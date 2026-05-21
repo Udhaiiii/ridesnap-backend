@@ -1,76 +1,117 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from '@/shared/components/ProtectedRoute';
+import { ModuleRoute } from '@/app/ModuleRoute';
 import LoginPage from '@/features/auth/login/LoginPage';
-import DashboardPage from '@/features/dashboard/DashboardPage';
-import PhotographerPage from '@/features/photographer/PhotographerPage';
-import PhotoDeskPage from '@/features/photo-desk/PhotoDeskPage';
-import PrintDashboardPage from '@/features/print-queue/PrintDashboardPage';
-import AdminDashboardPage from '@/features/admin/AdminDashboardPage';
-import BulkQrPrinterPage from '@/features/bulk-qr/BulkQrPrinterPage';
-import FinancialReportPage from '@/features/reports/FinancialReportPage';
-import ReceiptPage from '@/features/receipt/ReceiptPage';
+import StaffPortalPage from '@/features/portal/StaffPortalPage';
+
+const PhotographerPage = lazy(
+  () => import('@/features/photographer/PhotographerPage'),
+);
+const PhotoDeskPage = lazy(() => import('@/features/photo-desk/PhotoDeskPage'));
+const PrintDashboardPage = lazy(
+  () => import('@/features/print-queue/PrintDashboardPage'),
+);
+const AdminDashboardPage = lazy(
+  () => import('@/features/admin/AdminDashboardPage'),
+);
+const BulkQrPrinterPage = lazy(
+  () => import('@/features/bulk-qr/BulkQrPrinterPage'),
+);
+const FinancialReportPage = lazy(
+  () => import('@/features/reports/FinancialReportPage'),
+);
+const ReceiptPage = lazy(() => import('@/features/receipt/ReceiptPage'));
 
 export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+
+      {/* Staff portal (legacy index.html) — shown after login */}
       <Route
         path="/"
         element={
-          <ProtectedRoute>
-            <DashboardPage />
+          <ProtectedRoute roles={['admin', 'photographer', 'counter', 'print']}>
+            <StaffPortalPage />
           </ProtectedRoute>
         }
       />
+
+      {/* Seven modules — code-split; loaded when user opens a card */}
       <Route
         path="/photographer"
         element={
-          <ProtectedRoute roles={['photographer', 'admin']}>
+          <ModuleRoute pageName="Photographer App" roles={['photographer', 'admin']}>
             <PhotographerPage />
-          </ProtectedRoute>
+          </ModuleRoute>
         }
       />
       <Route
         path="/photo-desk"
         element={
-          <ProtectedRoute roles={['counter', 'admin']}>
+          <ModuleRoute pageName="Photo Desk" roles={['counter', 'admin']}>
             <PhotoDeskPage />
-          </ProtectedRoute>
+          </ModuleRoute>
         }
       />
       <Route
         path="/print"
         element={
-          <ProtectedRoute roles={['print', 'admin']}>
+          <ModuleRoute pageName="Print Dashboard" roles={['print', 'admin']}>
             <PrintDashboardPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute roles={['admin']}>
-            <AdminDashboardPage />
-          </ProtectedRoute>
+          </ModuleRoute>
         }
       />
       <Route
         path="/bulk-qr"
         element={
-          <ProtectedRoute roles={['admin']}>
+          <ModuleRoute pageName="Wristband Printer" roles={['admin']}>
             <BulkQrPrinterPage />
-          </ProtectedRoute>
+          </ModuleRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ModuleRoute pageName="Admin Dashboard" roles={['admin']}>
+            <AdminDashboardPage />
+          </ModuleRoute>
+        }
+      />
+      <Route
+        path="/receipt"
+        element={
+          <ModuleRoute pageName="Receipt" roles={['admin']}>
+            <ReceiptPage />
+          </ModuleRoute>
         }
       />
       <Route
         path="/reports"
         element={
-          <ProtectedRoute roles={['admin']}>
+          <ModuleRoute pageName="Financial Report" roles={['admin']}>
             <FinancialReportPage />
-          </ProtectedRoute>
+          </ModuleRoute>
         }
       />
-      <Route path="/receipt/:orderId" element={<ReceiptPage />} />
+
+      {/* Guest / deep link receipt (no staff portal shell) */}
+      <Route
+        path="/receipt/:orderId"
+        element={
+          <Suspense
+            fallback={
+              <div className="flex min-h-screen items-center justify-center font-rs-mono text-rs-sub">
+                Loading receipt…
+              </div>
+            }
+          >
+            <ReceiptPage />
+          </Suspense>
+        }
+      />
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

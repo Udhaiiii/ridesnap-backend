@@ -1,7 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/shared/api/client';
 import { PageHeader } from '@/shared/components/PageHeader';
-import { UserBar } from '@/shared/components/UserBar';
 
 const QrScannerModal = lazy(() =>
   import('@/features/photographer/components/QrScannerModal').then((m) => ({
@@ -171,7 +170,6 @@ export default function PhotographerPage() {
           />
         </Suspense>
       )}
-      <UserBar pageName="Photographer" />
     </>
   );
 }

@@ -86,11 +86,11 @@ npx prisma migrate deploy
 npm run prisma:seed
 ```
 
-### 5. Frontend environment
+### 5. Frontend environment (optional)
 
-```bash
-echo "VITE_API_URL=http://localhost:5000/api" > frontend/.env
-```
+For local dev you usually **do not** need `frontend/.env`. Vite proxies `/api` → `http://localhost:5000` automatically.
+
+If you created `frontend/.env` with `VITE_API_URL=http://localhost:5000/api`, **delete that line or the whole file** — it causes CORS errors on login.
 
 ---
 
@@ -130,18 +130,25 @@ npm run dev -w frontend
 
 ---
 
-## UI routes
+## UI flow (matches legacy HTML)
 
-| Screen | Path |
-|--------|------|
-| Login | `/login` |
-| Dashboard | `/` |
-| Photographer (QR scan) | `/photographer` |
-| Photo desk | `/photo-desk` |
-| Print queue | `/print` |
-| Admin | `/admin` |
-| Bulk QR | `/bulk-qr` |
-| Financial report | `/reports` |
+1. **Login** — `/login` (same as `login.html`)
+2. **Staff portal** — `/` (same as `index.html`: hero, live stats, role cards)
+3. **Modules** — open only when you click a card; each route is **lazy-loaded** (separate JS chunk)
+
+| Module | Legacy file | React path |
+|--------|-------------|------------|
+| Photographer App | `ridesnap.html` | `/photographer` |
+| Photo Desk | `photo-desk.html` | `/photo-desk` |
+| Print Dashboard | `print-dashboard.html` | `/print` |
+| Wristband Printer | `bulk-qr-printer.html` | `/bulk-qr` |
+| Admin Dashboard | `admin-dashboard.html` | `/admin` |
+| Receipt | `receipt.html` | `/receipt` |
+| Financial Report | `financial-report.html` | `/reports` |
+
+Styling uses **Tailwind CSS** with the same dark portal theme (Bebas Neue, DM Sans, amber accents) as `ridesnap-backend/public/index.html`.
+
+Legacy Express pages remain in `ridesnap-backend/public/` for `npm run dev:legacy`.
 | Receipt | `/receipt/:orderId` |
 
 ---
@@ -181,12 +188,65 @@ Open http://localhost:5000
 
 ## Troubleshooting
 
+### `Can't reach database server at localhost:5432` (Prisma P1001)
+
+The Nest API needs **PostgreSQL running** before `npm run dev`. The app will crash on startup if nothing is listening on port 5432.
+
+**Option A — Docker (recommended)**
+
+1. Start Docker:
+   - **Docker Desktop:** open the app and wait until it says “Running”
+   - **Colima:** `colima start`
+2. Start Postgres:
+
+```bash
+cd ~/Desktop/rideSnap
+docker compose up -d postgres
+docker compose ps          # should show postgres "running"
+```
+
+3. Confirm `backend/.env` has:
+
+```env
+DATABASE_URL=postgresql://ridesnap:ridesnap@localhost:5432/ridesnap?schema=public
+```
+
+4. Apply migrations (first time only):
+
+```bash
+cd backend
+npx prisma migrate deploy
+npm run prisma:seed
+```
+
+5. Start the app again: `npm run dev` (from repo root)
+
+**Option B — Postgres installed locally (no Docker)**
+
+```bash
+brew install postgresql@16
+brew services start postgresql@16
+createdb ridesnap
+```
+
+Then set in `backend/.env`:
+
+```env
+DATABASE_URL=postgresql://YOUR_MAC_USERNAME@localhost:5432/ridesnap?schema=public
+```
+
+(Create user/password in Postgres if you use auth — URL must match your local setup.)
+
+---
+
 | Issue | What to do |
 |-------|------------|
 | Can't find `schema.prisma` | Look in **`backend/prisma/schema.prisma`**, not repo root |
 | `prisma` command fails from root | `cd backend` first, or use `npm run … -w backend` |
-| DB connection error | `docker compose up -d postgres`, check `DATABASE_URL` in `backend/.env` |
-| Port 5000 in use | Change `PORT` in `backend/.env` and `frontend/.env` `VITE_API_URL` |
+| DB connection error | Start Docker/Colima, then `docker compose up -d postgres` |
+| `docker: command not found` / socket error | Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) or run `colima start` |
+| Port 5000 in use | Change `PORT` in `backend/.env` |
+| **CORS error on login** | Remove `frontend/.env` or unset `VITE_API_URL`; use http://localhost:5173 (not only 127.0.0.1 unless backend `CORS_ORIGIN` includes it); restart `npm run dev` |
 | Photo upload fails | Set `AWS_*` and `S3_*` in `backend/.env` |
 
 ---

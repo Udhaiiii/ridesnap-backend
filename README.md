@@ -77,10 +77,11 @@ Default admin: **`admin` / `admin@123`** (change after first login)
 
 ```bash
 cd frontend
-echo "VITE_API_URL=http://localhost:5000/api" > .env
 npm install
 npm run dev
 ```
+
+Do **not** set `VITE_API_URL=http://localhost:5000/api` in dev — that causes CORS on login. Vite proxies `/api` to the backend automatically.
 
 UI: `http://localhost:5173`
 

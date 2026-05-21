@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/shared/api/client';
-import { UserBar } from '@/shared/components/UserBar';
 
 interface QueueItem {
   id: string;
@@ -88,7 +87,6 @@ export default function PrintDashboardPage() {
           ))}
         </div>
       </div>
-      <UserBar pageName="Print Queue" />
     </>
   );
 }
